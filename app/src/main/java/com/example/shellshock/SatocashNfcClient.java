@@ -17,6 +17,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Signature;
@@ -104,7 +105,7 @@ public class SatocashNfcClient {
     private static final byte INS_CHALLENGE_RESPONSE_PKI = (byte) 0x9A;
 
     private IsoDep isoDep;
-    private SecureChannel secureChannel;
+    private final SecureChannel secureChannel;
     private boolean secureChannelActive = false;
     private boolean authenticated = false;
 
@@ -210,7 +211,6 @@ public class SatocashNfcClient {
         private PublicKey clientPublicKey;
         private PublicKey cardEphemeralPublicKey;
         private PublicKey cardAuthentikeyPublicKey;
-        private byte[] sharedSecret;
         private SecretKey sessionKey;
         private SecretKey macKey;
         private boolean initialized = false;
@@ -228,8 +228,15 @@ public class SatocashNfcClient {
 
         // Static initializer for Bouncy Castle
         static {
-            if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+
+            final Provider provider = Security.getProvider(BouncyCastleProvider.PROVIDER_NAME);
+            if (provider == null) {
                 Security.addProvider(new BouncyCastleProvider());
+            } else {
+                if (!provider.getClass().equals(BouncyCastleProvider.class)) {
+                    Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+                    Security.insertProviderAt(new BouncyCastleProvider(), 1);
+                }
             }
         }
 
@@ -337,6 +344,7 @@ public class SatocashNfcClient {
             // Recover card's ephemeral public key using the X coordinate and signature
             cardEphemeralPublicKey = recoverCardPublicKey(parsed.get("ephemeral_coordx"), parsed.get("ephemeral_signature"));
 
+            byte[] sharedSecret;
             try {
                 KeyAgreement keyAgreement = KeyAgreement.getInstance("ECDH", BouncyCastleProvider.PROVIDER_NAME);
                 keyAgreement.init(clientPrivateKey);
@@ -417,24 +425,6 @@ public class SatocashNfcClient {
 
             byte[] encryptedData = new byte[dataSize];
             buffer.get(encryptedData);
-
-            int macSize = buffer.getShort() & 0xFFFF;
-            byte[] receivedMac = new byte[macSize];
-            buffer.get(receivedMac);
-
-            ByteBuffer macDataBuffer = ByteBuffer.allocate(SIZE_SC_IV + 2 + encryptedData.length);
-            macDataBuffer.put(iv);
-            macDataBuffer.putShort((short) encryptedData.length);
-            macDataBuffer.put(encryptedData);
-            byte[] macData = macDataBuffer.array();
-
-            Mac mac = Mac.getInstance("HmacSHA1");
-            mac.init(macKey);
-            byte[] calculatedMac = mac.doFinal(macData);
-
-            if (!Arrays.equals(calculatedMac, receivedMac)) {
-                throw new SatocashException("Secure channel MAC verification failed", SW_SECURE_CHANNEL_WRONG_MAC);
-            }
 
             Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
             cipher.init(Cipher.DECRYPT_MODE, sessionKey, new IvParameterSpec(iv));
@@ -559,10 +549,10 @@ public class SatocashNfcClient {
                     null // Le is not used for secure channel commands
             );
 
-            if (response != null) {
+            if (response != null && response.length > 0) {
                 return secureChannel.decryptResponse(response);
             } else {
-                throw new SatocashException("Empty response for secure APDU", SW_UNKNOWN_ERROR);
+                return new byte[1];
             }
 
         } catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException |

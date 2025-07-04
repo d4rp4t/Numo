@@ -19,8 +19,6 @@ import java.security.SecureRandom
 
 class MainActivity : ComponentActivity() {
     private val TAG = "com.example.shellshock.MainActivity"
-    private lateinit var editText: EditText
-    private lateinit var button: Button
     private lateinit var textView: TextView
     private var nfcAdapter: NfcAdapter? = null
 
@@ -31,24 +29,12 @@ class MainActivity : ComponentActivity() {
         Log.d(TAG, "OnCreate was called")
 
         // Find UI components
-        editText = findViewById(R.id.editText)
-        button = findViewById(R.id.button)
         textView = findViewById(R.id.textView)
 
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         if (nfcAdapter == null) {
             textView.text = "NFC is not available on this device."
-            button.isEnabled = false
             return
-        }
-
-        button.setOnClickListener {
-            val message = editText.text.toString()
-            textView.text = "Attempting to send: $message"
-            // In a real app, you'd trigger NFC communication here
-            // For now, this button might be used to manually trigger a test APDU
-            // or to initiate a scan if not using foreground dispatch.
-            Log.d(TAG, "Button clicked with message: $message")
         }
 
         // Handle NFC intent if the app was launched by an NFC tag
