@@ -1,5 +1,6 @@
 package com.example.shellshock
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.nfc.NfcAdapter
 import android.nfc.Tag
@@ -70,6 +71,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private fun handleNfcIntent(intent: Intent) {
         val tag: Tag? = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
         if (tag != null) {
@@ -86,94 +88,70 @@ class MainActivity : ComponentActivity() {
                     // This is where you'd call the SatocashNfcClient methods
                     // based on your application's logic.
 
-                    // 1. Discover and select applet
-                    val aid = satocashClient.discoverApplets()
-                    if (aid != null) {
+                    // 1. Select applet
+                    satocashClient.selectApplet(SatocashNfcClient.SATOCASH_AID)
+                    withContext(Dispatchers.Main) {
+                        textView.text = "Satocash Applet found and selected!"
+                    }
+                    Log.d(TAG, "Satocash Applet selected.")
+
+                    // 2. Initialize Secure Channel
+                    satocashClient.initSecureChannel()
+                    withContext(Dispatchers.Main) {
+                        textView.text = "Secure Channel Initialized!"
+                    }
+                    Log.d(TAG, "Secure Channel Initialized.")
+
+                    // 3. Get Card Status (using secure channel)
+                    val status = satocashClient.getStatus()
+                    withContext(Dispatchers.Main) {
+                        textView.append("\nCard Status: ${status["applet_version"]}, PIN tries: ${status["pin_tries_remaining"]}")
+                    }
+                    Log.d(TAG, "Card Status: $status")
+
+                    // 4. Verify PIN (example)
+                    try {
+                        val pin = "1234" // Replace with actual PIN input
+                        satocashClient.verifyPin(pin, 0)
                         withContext(Dispatchers.Main) {
-                            textView.text = "Satocash Applet found and selected!"
+                            textView.append("\nPIN Verified! Card Ready.")
                         }
-                        Log.d(TAG, "Satocash Applet found and selected: ${aid.toHexString()}")
-
-                        // 2. Initialize Secure Channel
-                        satocashClient.initSecureChannel()
+                        Log.d(TAG, "PIN Verified.")
+                    } catch (e: SatocashNfcClient.SatocashException) {
                         withContext(Dispatchers.Main) {
-                            textView.text = "Secure Channel Initialized!"
+                            textView.append("\nPIN Verification Failed: ${e.message} (SW: ${String.format("0x%04X", e.sw)})")
                         }
-                        Log.d(TAG, "Secure Channel Initialized.")
-
-                        // 3. Get Card Status (using secure channel)
-                        val status = satocashClient.getStatus()
-                        withContext(Dispatchers.Main) {
-                            textView.append("\nCard Status: ${status["applet_version"]}, PIN tries: ${status["pin_tries_remaining"]}")
-                        }
-                        Log.d(TAG, "Card Status: $status")
-
-                        // 4. Verify PIN (example)
-                        try {
-                            val pin = "1234" // Replace with actual PIN input
-                            satocashClient.verifyPin(pin, 0)
-                            withContext(Dispatchers.Main) {
-                                textView.append("\nPIN Verified! Card Ready.")
-                            }
-                            Log.d(TAG, "PIN Verified.")
-                        } catch (e: SatocashNfcClient.SatocashException) {
-                            withContext(Dispatchers.Main) {
-                                textView.append("\nPIN Verification Failed: ${e.message} (SW: ${String.format("0x%04X", e.sw)})")
-                            }
-                            Log.e(TAG, "PIN Verification Failed: ${e.message} (SW: ${String.format("0x%04X", e.sw)})")
-                        }
-
-                        // Example: Get Card Label
-                        try {
-                            val label = satocashClient.getCardLabel()
-                            withContext(Dispatchers.Main) {
-                                textView.append("\nCard Label: $label")
-                            }
-                            Log.d(TAG, "Card Label: $label")
-                        } catch (e: SatocashNfcClient.SatocashException) {
-                            withContext(Dispatchers.Main) {
-                                textView.append("\nFailed to get card label: ${e.message}")
-                            }
-                            Log.e(TAG, "Failed to get card label: ${e.message}")
-                        }
-
-                        // Example: Import a dummy mint
-                        try {
-                            val dummyMintUrl = "https://dummy.mint.example.com"
-                            val mintIndex = satocashClient.importMint(dummyMintUrl)
-                            withContext(Dispatchers.Main) {
-                                textView.append("\nImported mint at index: $mintIndex")
-                            }
-                            Log.d(TAG, "Imported mint at index: $mintIndex")
-                        } catch (e: SatocashNfcClient.SatocashException) {
-                            withContext(Dispatchers.Main) {
-                                textView.append("\nFailed to import mint: ${e.message}")
-                            }
-                            Log.e(TAG, "Failed to import mint: ${e.message}")
-                        }
-
-                        // Example: Export a dummy authentikey
-                        try {
-                            val authentikeyInfo = satocashClient.exportAuthentikey()
-                            withContext(Dispatchers.Main) {
-                                textView.append("\nAuthentikey Exported: ${authentikeyInfo.coordX.toHexString()}")
-                            }
-                            Log.d(TAG, "Authentikey Exported: ${authentikeyInfo.coordX.toHexString()}")
-                        } catch (e: SatocashNfcClient.SatocashException) {
-                            withContext(Dispatchers.Main) {
-                                textView.append("\nFailed to export authentikey: ${e.message}")
-                            }
-                            Log.e(TAG, "Failed to export authentikey: ${e.message}")
-                        }
-
-
-                    } else {
-                        withContext(Dispatchers.Main) {
-                            textView.text = "No Satocash Applet found on this tag."
-                        }
-                        Log.w(TAG, "No Satocash Applet found on this tag.")
+                        Log.e(TAG, "PIN Verification Failed: ${e.message} (SW: ${String.format("0x%04X", e.sw)})")
                     }
 
+                    // Example: Get Card Label
+                    try {
+                        val label = satocashClient.getCardLabel()
+                        withContext(Dispatchers.Main) {
+                            textView.append("\nCard Label: $label")
+                        }
+                        Log.d(TAG, "Card Label: $label")
+                    } catch (e: SatocashNfcClient.SatocashException) {
+                        withContext(Dispatchers.Main) {
+                            textView.append("\nFailed to get card label: ${e.message}")
+                        }
+                        Log.e(TAG, "Failed to get card label: ${e.message}")
+                    }
+
+                    // Example: Import a dummy mint
+                    try {
+                        val dummyMintUrl = "https://dummy.mint.example.com"
+                        val mintIndex = satocashClient.importMint(dummyMintUrl)
+                        withContext(Dispatchers.Main) {
+                            textView.append("\nImported mint at index: $mintIndex")
+                        }
+                        Log.d(TAG, "Imported mint at index: $mintIndex")
+                    } catch (e: SatocashNfcClient.SatocashException) {
+                        withContext(Dispatchers.Main) {
+                            textView.append("\nFailed to import mint: ${e.message}")
+                        }
+                        Log.e(TAG, "Failed to import mint: ${e.message}")
+                    }
                 } catch (e: IOException) {
                     withContext(Dispatchers.Main) {
                         textView.text = "NFC Communication Error: ${e.message}"
