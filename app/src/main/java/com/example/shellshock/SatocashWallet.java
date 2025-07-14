@@ -192,24 +192,28 @@ public class SatocashWallet {
 
                 // Import changeProofs to card
                 Map<String, Integer> keysetIdsToIndices = transposeMap(keysetIndicesToIds);
-                for (Proof proof : changeProofs) {
-                    // Check the keyset is in the card, import otherwise
-                    if (!keysetIdsToIndices.containsKey(proof.keysetId)) {
-                        int index = cardClient.importKeyset(proof.keysetId, 0, SatocashNfcClient.Unit.SAT /* TODO: change this to the actual unit of the keyset*/);
-                        keysetIdsToIndices.put(proof.keysetId, index);
-                    }
-                    cardClient.importProof(
-                            keysetIdsToIndices.get(proof.keysetId),
-                            ilog2(proof.amount),
-                            pointToHex(proof.c, true),
-                            proof.secret.toString()
-                    );
-                }
+                importProofs(changeProofs, keysetIdsToIndices);
                 return receiveProofs;
             } catch (SatocashNfcClient.SatocashException | IOException e) {
                 throw new RuntimeException(e);
             }
         });
+    }
+
+    private void importProofs(List<Proof> changeProofs, Map<String, Integer> keysetIdsToIndices) throws SatocashNfcClient.SatocashException {
+        for (Proof proof : changeProofs) {
+            // Check the keyset is in the card, import otherwise
+            if (!keysetIdsToIndices.containsKey(proof.keysetId)) {
+                int index = cardClient.importKeyset(proof.keysetId, 0, SatocashNfcClient.Unit.SAT /* TODO: change this to the actual unit of the keyset*/);
+                keysetIdsToIndices.put(proof.keysetId, index);
+            }
+            cardClient.importProof(
+                    keysetIdsToIndices.get(proof.keysetId),
+                    ilog2(proof.amount),
+                    pointToHex(proof.c, true),
+                    proof.secret.toString()
+            );
+        }
     }
 
     public static int ilog2(long number) {
