@@ -70,7 +70,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         // The manifest filter with aid-filter will ensure this intent is already filtered
-        if (NfcAdapter.ACTION_TECH_DISCOVERED == intent.action) {
+        if (intent != null && NfcAdapter.ACTION_TECH_DISCOVERED == intent.action) {
             handleNfcIntent(intent)
         }
     }

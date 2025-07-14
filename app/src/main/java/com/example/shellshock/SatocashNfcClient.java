@@ -101,8 +101,8 @@ public class SatocashNfcClient {
     private boolean authenticated = false;
 
     // AID for the Satocash applet
-    private static final byte[] SATOCASH_AID = {
-            (byte) 0xA0, 0x00, 0x00, 0x00, 0x04, 0x53, 0x61, 0x74, 0x6F, 0x63, 0x61, 0x73, 0x68
+    public static final byte[] SATOCASH_AID = {
+            (byte) 0x53, 0x61, 0x74, 0x6F, 0x63, 0x61, 0x73, 0x68
     };
 
     // Common JavaCard applet AIDs to try (from Python client)
@@ -852,7 +852,7 @@ public class SatocashNfcClient {
 
     public static class KeysetInfo {
         public int index;
-        public byte[] id;
+        public String id;
         public int mintIndex;
         public int unit;
     }
@@ -872,13 +872,14 @@ public class SatocashNfcClient {
         while (buffer.remaining() >= 11) { // 1 byte index + 8 bytes ID + 1 byte mint_index + 1 byte unit
             KeysetInfo keyset = new KeysetInfo();
             keyset.index = buffer.get() & 0xFF;
-            keyset.id = new byte[8];
-            buffer.get(keyset.id);
+            byte[] keysetId = new byte[8];
+            buffer.get(keysetId);
+            keyset.id = bytesToHex(keysetId);
             keyset.mintIndex = buffer.get() & 0xFF;
             keyset.unit = buffer.get() & 0xFF;
             keysets.add(keyset);
             Log.d(TAG, String.format("  Index: %d, ID: %s, Mint: %d, Unit: %d",
-                    keyset.index, bytesToHex(keyset.id), keyset.mintIndex, keyset.unit));
+                    keyset.index, keyset.id, keyset.mintIndex, keyset.unit));
         }
         Log.d(TAG, "Exported " + keysets.size() + " keysets.");
         return keysets;
@@ -985,16 +986,19 @@ public class SatocashNfcClient {
         return proofs;
     }
 
-    public byte[] getProofInfo(Unit unit, ProofInfoType infoType, int indexStart, int indexSize) throws SatocashException, IOException {
+    public List<Integer> getProofInfo(Unit unit, ProofInfoType infoType, int indexStart, int indexSize) throws SatocashException, IOException {
         Log.d(TAG, "Getting proof info: Unit=" + unit.name() + ", InfoType=" + infoType.name() + "...");
         ByteArrayOutputStream dataStream = new ByteArrayOutputStream();
         dataStream.write(shortToBytes((short) indexStart));
         dataStream.write(shortToBytes((short) indexSize));
         byte[] response = sendSecureApdu(CLA_BITCOIN, INS_SATOCASH_GET_PROOF_INFO, (byte) unit.getValue(), (byte) infoType.getValue(), dataStream.toByteArray());
         Log.d(TAG, "Got proof info: " + bytesToHex(response));
-        return response;
+        List<Integer> intList = new ArrayList<>(response.length);
+        for (int i=0; i < response.length; ++i) {
+            intList.set(i, (int)response[i]);
+        }
+        return intList;
     }
-
     public boolean setCardLabel(String label) throws SatocashException {
         Log.d(TAG, "Setting card label: " + label + "...");
         byte[] labelBytes = label.getBytes();
@@ -1231,7 +1235,7 @@ public class SatocashNfcClient {
     }
 
     // Helper methods
-    private static String bytesToHex(byte[] bytes) {
+    public static String bytesToHex(byte[] bytes) {
         StringBuilder sb = new StringBuilder();
         for (byte b : bytes) {
             sb.append(String.format("%02X", b));

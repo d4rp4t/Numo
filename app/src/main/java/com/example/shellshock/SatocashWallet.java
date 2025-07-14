@@ -26,6 +26,7 @@ import com.cashujdk.nut03.PostSwapRequest;
 import com.cashujdk.nut03.PostSwapResponse;
 import com.cashujdk.utils.Pair;
 import com.cashujdk.utils.ProofSelector;
+import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.client.HttpClient;
 
 import org.bouncycastle.math.ec.ECPoint;
 
