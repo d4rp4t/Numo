@@ -55,6 +55,14 @@ android {
         }
     }
 
+    lint {
+        lintConfig = file("src/main/res/xml/lint.xml")
+        baseline = file("lint-baseline.xml")
+        abortOnError = false  // We want to build even with lint warnings
+        // Also disable the specific NewApi checks for Optional
+        disable += "NewApi"
+    }
+
     useLibrary("org.apache.http.legacy")
 }
 

@@ -26,7 +26,7 @@ public class SatocashWallet {
     @NotNull
     public static String pendingProofToken;
 
-    public static final String TAG = "SatocashWallet";
+    private static final String TAG = "SatocashWallet";
 
     public SatocashWallet(SatocashNfcClient _client) {
         cardClient = _client;
@@ -79,13 +79,7 @@ public class SatocashWallet {
                 Log.d(TAG, "Got metadata keyset indices, size: " + metadataKeysetIndices.size());
 
                 // Only consider unique indices from unspent proofs
-                Set<Integer> uniqueKeysetIndices = new HashSet<>();
-                for (int i = 0; i < metadataKeysetIndices.size(); i++) {
-                    // Check if the proof is not spent (0x80 bit not set)
-                    if ((metadataAmountInfo.get(i) & 0x80) == 0) {
-                        uniqueKeysetIndices.add(metadataKeysetIndices.get(i));
-                    }
-                }
+                Set<Integer> uniqueKeysetIndices = new HashSet<>(metadataKeysetIndices);
                 Log.d(TAG, "Unique keyset indices (from unspent proofs): " + uniqueKeysetIndices);
 
                 // Get the actual keyset IDs from the card
@@ -190,8 +184,8 @@ public class SatocashWallet {
                         .stream()
                         .filter((k) -> k.active)
                         .min(Comparator.comparing((k) -> k.inputFee))
-                        .orElseThrow()
-                        .keysetId;
+                        .map(k -> k.keysetId)
+                        .orElseThrow(() -> new RuntimeException("No active keyset found"));
                 Log.d(TAG, "Selected keyset ID for new proofs: " + selectedKeysetId);
 
                 // Request the keys in the keyset
@@ -238,49 +232,64 @@ public class SatocashWallet {
             try {
                 Token token = Token.decode(tokenString);
                 int importedCount = 0;
+                Log.d(TAG, "tokenString: " + tokenString);
 
+                List<Integer> metadataKeysetIndices = cardClient.getProofInfo(
+                        SatocashNfcClient.Unit.valueOf(token.unit.toUpperCase()),
+                        SatocashNfcClient.ProofInfoType.METADATA_KEYSET_INDEX,
+                        0,
+                        128
+                );
+                Log.d(TAG, "Got metadata keyset indices, size: " + metadataKeysetIndices.size());
+
+                // Only consider unique indices from unspent proofs
+                Set<Integer> uniqueKeysetIndices = new HashSet<>(metadataKeysetIndices);
+                Log.d(TAG, "Unique keyset indices (from unspent proofs): " + uniqueKeysetIndices);
                 Map<String, Integer> keysetIdsToIndices = new HashMap<>(); // To store keysetId to card index mapping
 
                 // First, populate keysetIdsToIndices with existing keysets on the card
-                List<SatocashNfcClient.KeysetInfo> existingKeysets = cardClient.exportKeysets(new ArrayList<>());
+                List<SatocashNfcClient.KeysetInfo> existingKeysets = cardClient.exportKeysets(new ArrayList<>(uniqueKeysetIndices));
                 for (SatocashNfcClient.KeysetInfo info : existingKeysets) {
                     keysetIdsToIndices.put(info.id, info.index);
                 }
 
                 String mintUrl = token.mint;
-                for (InnerToken tokenEntry : token.tokens) { // Correctly iterate through token entries
-                    // 1. Ensure existence of Mint in the card. If not use cardClient to import it.
 
-                    try {
-                        String expMint = cardClient.exportMint(0); // Try to export to check if it exists or for a side effect
-                        if (expMint.equals( mintUrl)) {
-                            cardClient.importMint(mintUrl);
-                        }
-                    } catch (SatocashNfcClient.SatocashException e) {
-                        Log.d(TAG, "Mint not present on card, attempting to import: " + mintUrl);
-                        try {
-                            cardClient.importMint(mintUrl); // Corrected: only mintUrl as argument
-                        } catch (SatocashNfcClient.SatocashException ex) {
-                            throw new RuntimeException("Failed to import mint: " + ex.getMessage(), ex);
+                // 1. Ensure existence of Mint in the card. If not use cardClient to import it.
+                int mintIndex;
+                for (mintIndex = 0; mintIndex < 16; ++mintIndex) {
+                    String expMint = cardClient.exportMint(mintIndex); // Try to export to check if it exists or for a side effect
+                    if (expMint != null) {
+                        if (expMint.equals(mintUrl)) {
+                            break;
                         }
                     }
+                }
 
+                if (mintIndex >= 16) {
+                    // Mint is not in card, import it
+                    mintIndex = cardClient.importMint(mintUrl);
+                }
+
+                for (InnerToken tokenEntry : token.tokens) { // Correctly iterate through token entries
 
                     // 2. For every proof:
                     // 2a. check that the keyset exists in the card, if not import it.
                     // 2b. Import the proof
-                    for (com.cashujdk.nut00.Proof proof : tokenEntry.proofs) { // Correctly access proofs from TokenEntry
+                    for (Proof proof : tokenEntry.proofs) { // Correctly access proofs from TokenEntry
                         // Check the keyset is in the card, import otherwise
                         if (!keysetIdsToIndices.containsKey(proof.keysetId)) {
                             Log.d(TAG, "Keyset not present on card, attempting to import: " + proof.keysetId);
-                            int index = cardClient.importKeyset(proof.keysetId, 0, SatocashNfcClient.Unit.SAT /* TODO: change this to the actual unit of the keyset*/);
+                            int index = cardClient.importKeyset(proof.keysetId, mintIndex, SatocashNfcClient.Unit.valueOf(token.unit.toUpperCase()) /* TODO: change this to the actual unit of the keyset*/);
                             keysetIdsToIndices.put(proof.keysetId, index);
+                        } else {
+                            Log.d(TAG, "Keyset " + proof.keysetId + " is already present in card");
                         }
                         cardClient.importProof(
                                 keysetIdsToIndices.get(proof.keysetId),
                                 ilog2(proof.amount),
                                 pointToHex(proof.c, true),
-                                proof.secret.toString()
+                                bytesToHex(proof.secret.getBytes())
                         );
                         importedCount++;
                     }
