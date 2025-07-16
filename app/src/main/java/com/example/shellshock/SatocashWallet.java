@@ -63,7 +63,7 @@ public class SatocashWallet {
 
                 // Step 3. Get information about the proofs in the card
                 List<Integer> metadataAmountInfo = cardClient.getProofInfo(
-                        SatocashNfcClient.Unit.valueOf(unit),
+                        SatocashNfcClient.Unit.valueOf(unit.toUpperCase()),
                         SatocashNfcClient.ProofInfoType.METADATA_AMOUNT_EXPONENT,
                         0,
                         128
@@ -71,7 +71,7 @@ public class SatocashWallet {
                 Log.d(TAG, "Got metadata amount info, size: " + metadataAmountInfo.size());
 
                 List<Integer> metadataKeysetIndices = cardClient.getProofInfo(
-                        SatocashNfcClient.Unit.valueOf(unit),
+                        SatocashNfcClient.Unit.valueOf(unit.toUpperCase()),
                         SatocashNfcClient.ProofInfoType.METADATA_KEYSET_INDEX,
                         0,
                         128
@@ -124,7 +124,7 @@ public class SatocashWallet {
 
                 List<Proof> sendSelection = selection.getSecond();
                 Log.d(TAG, "Selected proofs for sending, size: " + sendSelection.size());
-                Log.d(TAG, "Selected proofs: " + sendSelection.stream().map((p) -> p.amount).collect(Collectors.toList()));
+                Log.d(TAG, "Selected proofs: " + sendSelection.stream().map((p) -> p.amount).toList());
                 
                 if (sendSelection.isEmpty()) {
                     throw new RuntimeException("Empty selection: couldn't select coins for this amount");
@@ -177,7 +177,7 @@ public class SatocashWallet {
                     );
                 }).collect(Collectors.toList());
                 Log.d(TAG, "Exported proofs from card, size: " + exportedProofs.size());
-                Log.d(TAG, "Exported proofs signatures: " + exportedProofs.stream().map((p) -> p.c).collect(Collectors.toList()));
+                Log.d(TAG, "Exported proofs signatures: " + exportedProofs.stream().map((p) -> p.c).toList());
 
                 // Create output amounts
                 Pair<List<Long>, List<Long>> outputAmounts = createOutputAmounts(amount, changeAmount);
@@ -194,14 +194,14 @@ public class SatocashWallet {
                 // Request the keys in the keyset
                 CompletableFuture<GetKeysResponse> keysFuture = cashuHttpClient.getKeys(selectedKeysetId);
 
-                List<Pair<BlindedMessage, Pair<ISecret, BigInteger>>> outputsAndSecretData = Stream.concat(outputAmounts.getFirst().stream(), outputAmounts.getSecond().stream())
+                List<Pair<BlindedMessage, Pair<StringSecret, BigInteger>>> outputsAndSecretData = Stream.concat(outputAmounts.getFirst().stream(), outputAmounts.getSecond().stream())
                         .map((output) -> {
-                            ISecret secret = StringSecret.random();
+                            StringSecret secret = StringSecret.random();
                             BigInteger blindingFactor = generateRandomScalar();
                             BlindedMessage blindedMessage = new BlindedMessage(
                                     output,
                                     selectedKeysetId,
-                                    pointToHex(computeB_(hashToCurve(secret.getBytes()), blindingFactor), true),
+                                    pointToHex(computeB_(messageToCurve(secret.getSecret()), blindingFactor), true),
                                     Optional.empty()
                             );
                             return new Pair<>(blindedMessage, new Pair<>(secret, blindingFactor));
@@ -357,7 +357,7 @@ public class SatocashWallet {
             throw new IllegalArgumentException();
         }
         int n = 63 - Long.numberOfLeadingZeros(number);
-        Log.d(TAG, "ilog2("+number+") = "+n);
+        //Log.d(TAG, "ilog2("+number+") = "+n);
         return n;
     }
 
@@ -369,19 +369,22 @@ public class SatocashWallet {
         return transposedMap;
     }
 
-    private List<Proof> constructAndVerifyProofs(PostSwapResponse response, KeysetItemResponse keyset, List<Pair<BlindedMessage, Pair<ISecret, BigInteger>>> outputsAndSecretData) {
-        List<BigInteger> blindingFactors = outputsAndSecretData.stream().map((output) -> output.getSecond().getSecond()).collect(Collectors.toList());
-        List<ISecret> secrets = outputsAndSecretData.stream().map((output) -> output.getSecond().getFirst()).collect(Collectors.toList());
+    private List<Proof> constructAndVerifyProofs(PostSwapResponse response, KeysetItemResponse keyset, List<Pair<BlindedMessage, Pair<StringSecret, BigInteger>>> outputsAndSecretData) {
+        List<BigInteger> blindingFactors = outputsAndSecretData.stream().map((output) -> output.getSecond().getSecond()).toList();
+        List<StringSecret> secrets = outputsAndSecretData.stream().map((output) -> output.getSecond().getFirst()).toList();
 
         List<Proof> result = new ArrayList<>();
         for (int i = 0; i < response.signatures.size(); ++i) {
             BlindSignature signature = response.signatures.get(i);
             BigInteger blindingFactor = blindingFactors.get(i);
-            ISecret secret = secrets.get(i);
+            StringSecret secret = secrets.get(i);
 
             ECPoint key = hexToPoint(keyset.keys.get(BigInteger.valueOf(signature.amount)));
             ECPoint C = computeC(hexToPoint(signature.c_), blindingFactor, key);
 
+            if (!verifyProof(messageToCurve(secret.getSecret()), blindingFactor, C, signature.dleq.e, signature.dleq.s, key)) {
+                Log.e(TAG, String.format("Couldn't verify signature: %s", signature.c_));
+            }
             result.add(new Proof(signature.amount, signature.keysetId, secret, pointToHex(C, true), Optional.empty(), Optional.empty()));
         }
         return result;

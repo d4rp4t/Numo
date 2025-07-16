@@ -383,7 +383,7 @@ public class ModernPOSActivity extends AppCompatActivity {
                 // Create a CompletableFuture for the PIN dialog result
                 CompletableFuture<String> pinFuture = new CompletableFuture<>();
                 
-                showPinDialog(pin -> pinFuture.complete(pin));
+                showPinDialog(pinFuture::complete);
                 
                 // Wait for PIN input
                 String pin = pinFuture.join();
