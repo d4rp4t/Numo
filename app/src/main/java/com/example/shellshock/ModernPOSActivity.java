@@ -392,12 +392,12 @@ public class ModernPOSActivity extends AppCompatActivity {
                     Log.d(TAG, "Payment successful without PIN! Token received.");
                     handlePaymentSuccess(token);
                     return;
-                } catch (Exception e) {
-                    Log.d(TAG, "Payment without PIN failed, attempting with PIN authentication...");
-                    // Check if the error indicates authentication is required
-                    if (e.getMessage() != null && (e.getMessage().contains("Not authenticated") || 
-                        e.getCause() instanceof SatocashNfcClient.SatocashException &&
-                        ((SatocashNfcClient.SatocashException)e.getCause()).getSw() == 0x6982)) { // SW_SECURITY_STATUS_NOT_SATISFIED
+                } catch (RuntimeException e) {
+                    // Check if the error is specifically SW_UNAUTHORIZED
+                    if (e.getCause() instanceof SatocashNfcClient.SatocashException &&
+                        ((SatocashNfcClient.SatocashException)e.getCause()).getSw() == SatocashNfcClient.SW_UNAUTHORIZED) {
+                        
+                        Log.d(TAG, "Got SW_UNAUTHORIZED, attempting with PIN authentication...");
                         
                         // Create a CompletableFuture for the PIN dialog result
                         CompletableFuture<String> pinFuture = new CompletableFuture<>();
@@ -448,7 +448,7 @@ public class ModernPOSActivity extends AppCompatActivity {
                             handlePaymentError("PIN entry cancelled");
                         }
                     } else {
-                        // If it's not an authentication error, propagate the original error
+                        // If it's not SW_UNAUTHORIZED, propagate the original error
                         throw e;
                     }
                 }
