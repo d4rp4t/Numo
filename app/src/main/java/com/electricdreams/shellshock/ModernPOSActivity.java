@@ -143,6 +143,77 @@ public class ModernPOSActivity extends AppCompatActivity {
         resetToInputMode();
     }
 
+    private void resetToInputMode() {
+        tokenScrollContainer.setVisibility(View.GONE);
+        tokenActionsContainer.setVisibility(View.GONE);
+        inputModeContainer.setVisibility(View.VISIBLE);
+        
+        // Clear token display
+        tokenDisplay.setText("");
+        
+        // Reset copy button
+        copyTokenButton.setVisibility(View.GONE);
+        
+        // Reset amount display
+        currentInput.setLength(0);
+        updateDisplay();
+    }
+
+    private void switchToTokenMode() {
+        inputModeContainer.setVisibility(View.GONE);
+        tokenScrollContainer.setVisibility(View.VISIBLE);
+        tokenActionsContainer.setVisibility(View.VISIBLE);
+        tokenDisplay.setVisibility(View.VISIBLE);
+    }
+
+    private void copyTokenToClipboard(String token) {
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        ClipData clip = ClipData.newPlainText("Cashu Token", token);
+        clipboard.setPrimaryClip(clip);
+        Toast.makeText(this, "Token copied to clipboard", Toast.LENGTH_SHORT).show();
+    }
+
+    private void onKeypadButtonClick(String label) {
+        switch (label) {
+            case "C":
+                currentInput.setLength(0);
+                break;
+            case "◀":
+                if (currentInput.length() > 0) {
+                    currentInput.setLength(currentInput.length() - 1);
+                }
+                break;
+            default:
+                if (currentInput.length() < 9) { // Limit input to 9 digits
+                    currentInput.append(label);
+                }
+                break;
+        }
+        updateDisplay();
+    }
+
+    private void updateDisplay() {
+        if (currentInput.length() == 0) {
+            amountDisplay.setText("0");
+        } else {
+            amountDisplay.setText(currentInput.toString());
+        }
+    }
+
+    private void showNfcDialog(long amount) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.Theme_Shellshock);
+        LayoutInflater inflater = this.getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_nfc_modern, null);
+        builder.setView(dialogView);
+
+        TextView nfcAmountDisplay = dialogView.findViewById(R.id.nfc_amount_display);
+        nfcAmountDisplay.setText(String.format("%d sats", amount));
+
+        builder.setCancelable(true);
+        nfcDialog = builder.create();
+        nfcDialog.show();
+    }
+
     private void toggleTheme() {
         isNightMode = !isNightMode;
         SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit();
@@ -191,5 +262,5 @@ public class ModernPOSActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    // ... rest of the code remains the same ...
+    // ... rest of the code (PIN dialog, NFC handling, etc.) remains the same ...
 }
