@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Shellshock" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Primary brand color. -->
         <item name="colorPrimary">@color/dark_colorPrimary</item>
         <item name="colorPrimaryVariant">@color/dark_colorPrimaryDark</item>
         <item name="colorOnPrimary">@color/dark_textColorPrimary</item>
+        <!-- Secondary brand color. -->
         <item name="colorSecondary">@color/dark_colorAccent</item>
         <item name="colorSecondaryVariant">@color/dark_colorAccent</item>
         <item name="colorOnSecondary">@color/dark_textColorPrimary</item>
+        <!-- Status bar color. -->
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        <!-- Background colors -->
         <item name="android:windowBackground">@color/dark_windowBackground</item>
         <item name="android:textColor">@color/dark_textColorPrimary</item>
     </style>

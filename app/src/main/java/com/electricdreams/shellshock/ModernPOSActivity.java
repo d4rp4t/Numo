@@ -71,12 +71,13 @@ public class ModernPOSActivity extends AppCompatActivity {
         // Load theme preference before setting content view
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         isNightMode = prefs.getBoolean(KEY_NIGHT_MODE, false);
-        AppCompatDelegate.setDefaultNightMode(
-            isNightMode ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO
-        );
+        if (isNightMode) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+        } else {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        }
 
         super.onCreate(savedInstanceState);
-        setTheme(R.style.Theme_Shellshock);
         setContentView(R.layout.activity_modern_pos);
 
         Toolbar toolbar = findViewById(R.id.toolbar);
