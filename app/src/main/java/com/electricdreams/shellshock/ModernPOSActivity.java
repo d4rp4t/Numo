@@ -6,6 +6,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.nfc.NfcAdapter;
 import android.nfc.Tag;
 import android.nfc.tech.IsoDep;
@@ -48,6 +49,7 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
     private AlertDialog nfcDialog;
     private TextView tokenDisplay;
     private Button copyTokenButton;
+    private Button openWithButton;
     private Button resetButton;
     private ScrollView tokenScrollContainer;
     private LinearLayout tokenActionsContainer;
@@ -95,6 +97,7 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
         GridLayout keypad = findViewById(R.id.keypad);
         tokenDisplay = findViewById(R.id.token_display);
         copyTokenButton = findViewById(R.id.copy_token_button);
+        openWithButton = findViewById(R.id.open_with_button);
         resetButton = findViewById(R.id.reset_button);
         tokenScrollContainer = findViewById(R.id.token_scroll_container);
         tokenActionsContainer = findViewById(R.id.token_actions_container);
@@ -146,10 +149,40 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
             }
         });
 
+        openWithButton.setOnClickListener(v -> {
+            String token = tokenDisplay.getText().toString();
+            if (!token.isEmpty() && !token.startsWith("Error:")) {
+                openTokenWithApp(token);
+            }
+        });
+
         resetButton.setOnClickListener(v -> resetToInputMode());
 
         // Ensure initial state
         resetToInputMode();
+    }
+
+    private void openTokenWithApp(String token) {
+        String cashuUri = "cashu:" + token;
+        
+        // Create intent for viewing the URI
+        Intent uriIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(cashuUri));
+        uriIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        // Create a fallback intent for sharing as text
+        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+        shareIntent.setType("text/plain");
+        shareIntent.putExtra(Intent.EXTRA_TEXT, cashuUri);
+        
+        // Combine both intents into a chooser
+        Intent chooserIntent = Intent.createChooser(shareIntent, "Open token with...");
+        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[] { uriIntent });
+        
+        try {
+            startActivity(chooserIntent);
+        } catch (Exception e) {
+            Toast.makeText(this, "No apps available to handle this token", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void resetToInputMode() {
@@ -160,8 +193,9 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
         // Clear token display
         tokenDisplay.setText("");
         
-        // Reset copy button
+        // Reset buttons
         copyTokenButton.setVisibility(View.GONE);
+        openWithButton.setVisibility(View.GONE);
         
         // Reset amount display
         currentInput.setLength(0);
@@ -173,6 +207,8 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
         tokenScrollContainer.setVisibility(View.VISIBLE);
         tokenActionsContainer.setVisibility(View.VISIBLE);
         tokenDisplay.setVisibility(View.VISIBLE);
+        copyTokenButton.setVisibility(View.VISIBLE);
+        openWithButton.setVisibility(View.VISIBLE);
     }
 
     private void copyTokenToClipboard(String token) {
@@ -484,6 +520,7 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
             switchToTokenMode();
             tokenDisplay.setText("Error: " + message);
             copyTokenButton.setVisibility(View.GONE);
+            openWithButton.setVisibility(View.GONE);
         });
     }
 
@@ -504,6 +541,7 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
             switchToTokenMode();
             tokenDisplay.setText(token);
             copyTokenButton.setVisibility(View.VISIBLE);
+            openWithButton.setVisibility(View.VISIBLE);
             Toast.makeText(this, "Payment successful!", Toast.LENGTH_SHORT).show();
         });
     }
