@@ -36,10 +36,13 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import android.view.ViewGroup;
 
 import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.text.NumberFormat;
+import java.util.*;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
+
+import com.electricdreams.shellshock.ndef.NdefHostCardEmulationService;
+import com.electricdreams.shellshock.ndef.CashuPaymentHelper;
 
 public class ModernPOSActivity extends AppCompatActivity implements SatocashWallet.OperationFeedback {
 
@@ -51,6 +54,7 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
     private Button submitButton;
     private StringBuilder currentInput = new StringBuilder();
     private AlertDialog nfcDialog;
+    private AlertDialog paymentMethodDialog;
     private TextView tokenDisplay;
     private Button copyTokenButton;
     private Button openWithButton;
@@ -151,7 +155,7 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
             String amount = currentInput.toString();
             if (!amount.isEmpty()) {
                 requestedAmount = Long.parseLong(amount);
-                showNfcDialog(requestedAmount);
+                showPaymentMethodDialog(requestedAmount);
             } else {
                 Toast.makeText(this, "Please enter an amount", Toast.LENGTH_SHORT).show();
             }
@@ -289,18 +293,293 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
         }
     }
 
-    private void showNfcDialog(long amount) {
+    private void showPaymentMethodDialog(long amount) {
+        // Create a unified payment experience
+        proceedWithUnifiedPayment(amount);
+    }
+    
+    /**
+     * Unified payment flow that automatically detects the payment method based on the NFC card/device
+     */
+    private void proceedWithUnifiedPayment(long amount) {
+        // Store the requested amount for processing
+        requestedAmount = amount;
+
+        // For NDEF capability, we check and prepare upfront
+        final boolean ndefAvailable = NdefHostCardEmulationService.isHceAvailable(this);
+        String paymentRequestLocal = null;
+        
+        if (ndefAvailable) {
+            // Create the payment request in case we need it
+            paymentRequestLocal = CashuPaymentHelper.createPaymentRequest(
+                amount, 
+                "Payment of " + amount + " sats"
+            );
+            
+            if (paymentRequestLocal == null) {
+                Log.e(TAG, "Failed to create payment request");
+                Toast.makeText(this, "Failed to prepare NDEF payment data", Toast.LENGTH_SHORT).show();
+            } else {
+                Log.d(TAG, "Created payment request: " + paymentRequestLocal);
+                
+                // Start HCE service in the background
+                Intent serviceIntent = new Intent(this, NdefHostCardEmulationService.class);
+                startService(serviceIntent);
+            }
+        }
+        final String finalPaymentRequest = paymentRequestLocal;
+        
+        // Show the unified NFC scan dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.Theme_Shellshock);
         LayoutInflater inflater = this.getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.dialog_nfc_modern, null);
         builder.setView(dialogView);
 
+        // Set up dialog content
         TextView nfcAmountDisplay = dialogView.findViewById(R.id.nfc_amount_display);
         nfcAmountDisplay.setText(formatAmount(String.valueOf(amount)));
+        
+        TextView titleView = dialogView.findViewById(R.id.nfc_dialog_title);
+        if (titleView != null) {
+            titleView.setText("Scan Card or Device");
+        }
+        
+        TextView hintView = dialogView.findViewById(R.id.nfc_hint_text);
+        if (hintView != null) {
+            if (ndefAvailable && finalPaymentRequest != null) {
+                hintView.setText("Scan a Satocash card or bring your phone near an NFC device for payment");
+            } else {
+                hintView.setText("Scan your Satocash card to make the payment");
+            }
+            hintView.setVisibility(View.VISIBLE);
+        }
+        
+        // Hide payment method buttons in unified flow
+        Button smartcardButton = dialogView.findViewById(R.id.btn_smartcard_payment);
+        Button ndefButton = dialogView.findViewById(R.id.btn_ndef_payment);
+        if (smartcardButton != null) smartcardButton.setVisibility(View.GONE);
+        if (ndefButton != null) ndefButton.setVisibility(View.GONE);
+        
+        // Add cancel button functionality if available
+        Button cancelButton = dialogView.findViewById(R.id.nfc_cancel_button);
+        if (cancelButton != null) {
+            cancelButton.setOnClickListener(v -> {
+                if (nfcDialog != null && nfcDialog.isShowing()) {
+                    nfcDialog.dismiss();
+                }
+                // Clean up HCE service if it was started
+                if (ndefAvailable) {
+                    resetHceService();
+                }
+                Toast.makeText(this, "Payment canceled", Toast.LENGTH_SHORT).show();
+            });
+        }
 
+        // Make dialog cancellable
         builder.setCancelable(true);
+        builder.setOnCancelListener(dialog -> {
+            // Clean up HCE service if it was started
+            if (ndefAvailable) {
+                stopHceService();
+            }
+        });
+
+        // If we have NDEF capability, setup the HCE service with the payment request
+        if (ndefAvailable && finalPaymentRequest != null) {
+            new Handler().postDelayed(() -> {
+                NdefHostCardEmulationService hceService = NdefHostCardEmulationService.getInstance();
+                if (hceService != null) {
+                    Log.d(TAG, "Setting up NDEF payment with HCE service in unified flow");
+                    
+                    // Set the payment request to the HCE service with expected amount
+                    hceService.setPaymentRequest(finalPaymentRequest, amount);
+                    
+                    // Set up callback for when a token is received or an error occurs
+                    hceService.setPaymentCallback(new NdefHostCardEmulationService.CashuPaymentCallback() {
+                        @Override
+                        public void onCashuTokenReceived(String token) {
+                            runOnUiThread(() -> {
+                                try {
+                                    // Set the received token and handle the success
+                                    // This will automatically call stopHceService()
+                                    handlePaymentSuccess(token);
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Error in NDEF payment callback: " + e.getMessage(), e);
+                                    handlePaymentError("Error processing NDEF payment: " + e.getMessage());
+                                }
+                            });
+                        }
+                        
+                        @Override
+                        public void onCashuPaymentError(String errorMessage) {
+                            runOnUiThread(() -> {
+                                Log.e(TAG, "NDEF Payment error callback: " + errorMessage);
+                                handlePaymentError("NDEF Payment failed: " + errorMessage);
+                            });
+                        }
+                    });
+                    
+                    Log.d(TAG, "NDEF payment service ready in unified flow");
+                }
+            }, 1000);
+        }
+        
+        // Show the dialog
         nfcDialog = builder.create();
         nfcDialog.show();
+    }
+
+    private void proceedWithNdefPayment(long amount) {
+        // First check if HCE is available on this device
+        if (!NdefHostCardEmulationService.isHceAvailable(this)) {
+            Toast.makeText(this, "Host Card Emulation is not available on this device", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        Log.i(TAG, "Starting NDEF payment flow for " + amount + " sats");
+        
+        // Create the payment request
+        String paymentRequest = CashuPaymentHelper.createPaymentRequest(
+                amount, 
+                "Payment of " + amount + " sats"
+        );
+        
+        if (paymentRequest == null) {
+            Log.e(TAG, "Failed to create payment request");
+            Toast.makeText(this, "Failed to create payment request", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        Log.i(TAG, "Created payment request: " + paymentRequest);
+        
+        // Show NDEF payment dialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.Theme_Shellshock);
+        LayoutInflater inflater = getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_ndef_payment, null);
+        builder.setView(dialogView);
+        
+        // Get views from the dialog
+        TextView amountDisplay = dialogView.findViewById(R.id.nfc_amount_display);
+        TextView statusText = dialogView.findViewById(R.id.nfc_status_text);
+        Button cancelButton = dialogView.findViewById(R.id.nfc_cancel_button);
+        
+        // Set amount display
+        amountDisplay.setText(formatAmount(String.valueOf(amount)));
+        
+        // Create and show the dialog
+        AlertDialog ndefDialog = builder.create();
+        ndefDialog.setCancelable(false);
+        ndefDialog.show();
+        
+        // Start or use the HCE service
+        statusText.setText("Initializing Host Card Emulation...");
+        Log.i(TAG, "Starting HCE service");
+        
+        // Force start the HCE service
+        Intent serviceIntent = new Intent(this, NdefHostCardEmulationService.class);
+        startService(serviceIntent);
+        
+        // Wait a bit then check for the service
+        new Handler().postDelayed(() -> {
+            NdefHostCardEmulationService hceService = NdefHostCardEmulationService.getInstance();
+            Log.i(TAG, "HCE service instance after first delay: " + (hceService != null ? "available" : "null"));
+            
+            if (hceService != null) {
+                Log.i(TAG, "Setting up NDEF payment with HCE service");
+                setupNdefPayment(hceService, paymentRequest, statusText, ndefDialog, amount);
+            } else {
+                // Try one more time with a longer delay
+                statusText.setText("Waiting for HCE service...");
+                Log.i(TAG, "HCE service not available yet, trying with longer delay");
+                
+                new Handler().postDelayed(() -> {
+                    NdefHostCardEmulationService service = NdefHostCardEmulationService.getInstance();
+                    Log.i(TAG, "HCE service instance after second delay: " + (service != null ? "available" : "null"));
+                    
+                    if (service != null) {
+                        Log.i(TAG, "Setting up NDEF payment with HCE service (second attempt)");
+                        setupNdefPayment(service, paymentRequest, statusText, ndefDialog, amount);
+                    } else {
+                        String errorMsg = "HCE service not available. Make sure NFC is enabled and Host Card Emulation is supported on your device.";
+                        Log.e(TAG, errorMsg);
+                        statusText.setText("Error: Host Card Emulation service not available");
+                        Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show();
+                    }
+                }, 3000);
+            }
+        }, 1000);
+        
+        // Handle cancel button
+        cancelButton.setOnClickListener(v -> {
+            Log.i(TAG, "NDEF payment canceled by user");
+            // Stop the HCE service properly
+            stopHceService();
+            ndefDialog.dismiss();
+            Toast.makeText(this, "Payment canceled", Toast.LENGTH_SHORT).show();
+        });
+    }
+    
+    private void setupNdefPayment(NdefHostCardEmulationService service, String paymentRequest, 
+                                  TextView statusText, AlertDialog dialog, long amount) {
+        try {
+            // Set the payment request to the HCE service with expected amount
+            service.setPaymentRequest(paymentRequest, amount);
+            
+            // Set up callback for when a token is received or an error occurs
+            service.setPaymentCallback(new NdefHostCardEmulationService.CashuPaymentCallback() {
+                @Override
+                public void onCashuTokenReceived(String token) {
+                    runOnUiThread(() -> {
+                        try {
+                            // Dismiss the dialog
+                            if (dialog != null && dialog.isShowing()) {
+                                dialog.dismiss();
+                            }
+                            
+                            // Set the received token and handle the success
+                            // This will automatically call stopHceService()
+                            handlePaymentSuccess(token);
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error in payment callback: " + e.getMessage(), e);
+                            handlePaymentError("Error processing payment: " + e.getMessage());
+                        }
+                    });
+                }
+                
+                @Override
+                public void onCashuPaymentError(String errorMessage) {
+                    runOnUiThread(() -> {
+                        Log.e(TAG, "Payment error callback: " + errorMessage);
+                        
+                        // Dismiss the dialog
+                        if (dialog != null && dialog.isShowing()) {
+                            dialog.dismiss();
+                        }
+                        
+                        // Handle the payment error
+                        // This will automatically call stopHceService()
+                        handlePaymentError("Payment failed: " + errorMessage);
+                    });
+                }
+            });
+            
+            // Update status text
+            statusText.setText("Waiting for payment...\n\nHold your phone against the paying device");
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up NDEF payment: " + e.getMessage(), e);
+            
+            // Clean up if there's an error
+            if (service != null) {
+                service.clearPaymentRequest();
+                service.setPaymentCallback(null);
+            }
+            
+            // Show error to user
+            if (dialog != null && dialog.isShowing()) {
+                dialog.dismiss();
+            }
+            handlePaymentError("Error setting up NDEF payment: " + e.getMessage());
+        }
     }
 
     private void showRescanDialog() {
@@ -413,6 +692,13 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
         if (nfcAdapter != null) {
             nfcAdapter.disableForegroundDispatch(this);
         }
+    }
+    
+    @Override
+    protected void onDestroy() {
+        // Make sure to stop the HCE service when the activity is destroyed
+        stopHceService();
+        super.onDestroy();
     }
 
     @Override
@@ -569,6 +855,9 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
         requestedAmount = 0;
         currentInput.setLength(0);
 
+        // Ensure HCE service is cleaned up on error
+        resetHceService();
+
         mainHandler.post(() -> {
             if (nfcDialog != null && nfcDialog.isShowing()) {
                 nfcDialog.dismiss();
@@ -579,11 +868,57 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
             if (processingDialog != null && processingDialog.isShowing()) {
                 processingDialog.dismiss();
             }
+            if (paymentMethodDialog != null && paymentMethodDialog.isShowing()) {
+                paymentMethodDialog.dismiss();
+            }
             switchToTokenMode();
             tokenDisplay.setText("Error: " + message);
             copyTokenButton.setVisibility(View.GONE);
             openWithButton.setVisibility(View.GONE);
         });
+    }
+    
+    /**
+     * Properly reset the HCE service state
+     * Instead of stopping the service entirely, we just reset its state
+     */
+    private void resetHceService() {
+        try {
+            NdefHostCardEmulationService hceService = NdefHostCardEmulationService.getInstance();
+            if (hceService != null) {
+                Log.d(TAG, "Resetting HCE service state...");
+                // Clear any pending payment request
+                hceService.clearPaymentRequest();
+                // Remove payment callback
+                hceService.setPaymentCallback(null);
+                Log.d(TAG, "HCE service state reset successfully");
+            } else {
+                Log.d(TAG, "No active HCE service to reset");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error resetting HCE service: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Properly stop and cleanup the HCE service - only call this when app is exiting
+     */
+    private void stopHceService() {
+        try {
+            // First reset the service state
+            resetHceService();
+            
+            // Then explicitly stop the service (only when app is exiting)
+            NdefHostCardEmulationService hceService = NdefHostCardEmulationService.getInstance();
+            if (hceService != null) {
+                Log.d(TAG, "Stopping HCE service...");
+                Intent serviceIntent = new Intent(this, NdefHostCardEmulationService.class);
+                stopService(serviceIntent);
+                Log.d(TAG, "HCE service stopped successfully");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error stopping HCE service: " + e.getMessage(), e);
+        }
     }
 
     private void handlePaymentSuccess(String token) {
@@ -592,6 +927,9 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
         currentInput.setLength(0);
 
         Log.d(TAG, "Payment successful! Token: " + token);
+
+        // Ensure HCE service is cleaned up on success
+        stopHceService();
 
         TokenHistoryActivity.addToHistory(this, token, amount);
 
@@ -604,6 +942,9 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
             }
             if (processingDialog != null && processingDialog.isShowing()) {
                 processingDialog.dismiss();
+            }
+            if (paymentMethodDialog != null && paymentMethodDialog.isShowing()) {
+                paymentMethodDialog.dismiss();
             }
             switchToTokenMode();
             tokenDisplay.setText(token);
