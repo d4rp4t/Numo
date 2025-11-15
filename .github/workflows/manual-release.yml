@@ -34,7 +34,7 @@ jobs:
           java-version: '17'
           cache: gradle
 
-      # Decode the base 64 encoded keystore string to keystore.jks
+      # Decode the base64 encoded keystore string to keystore.jks
       - name: Decode Keystore
         env:
           ENCODED_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 }}
@@ -42,10 +42,12 @@ jobs:
           mkdir -p $HOME/keystore
           echo $ENCODED_KEYSTORE | base64 -d > $HOME/keystore/app-release.keystore
 
-      # Create a signing configuration for the project
-      - name: Create signing config
+      # Update app/build.gradle.kts with the signing configuration
+      - name: Set up signing configuration
         run: |
-          cat <<EOF > app/signing.gradle.kts
+          cat <<EOT >> app/build.gradle.kts
+          
+          // Added by GitHub Actions for app signing
           android {
               signingConfigs {
                   create("release") {
@@ -55,16 +57,14 @@ jobs:
                       keyPassword = System.getenv("KEY_PASSWORD")
                   }
               }
+              
               buildTypes {
                   getByName("release") {
                       signingConfig = signingConfigs.getByName("release")
                   }
               }
           }
-          EOF
-          
-          # Apply the signing configuration by adding it to app/build.gradle.kts
-          echo "apply(from = \"signing.gradle.kts\")" >> app/build.gradle.kts
+          EOT
 
       # Build signed APK with release profile
       - name: Build Release APK
