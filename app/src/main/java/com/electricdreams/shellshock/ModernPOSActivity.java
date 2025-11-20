@@ -30,7 +30,7 @@ import android.widget.Toast;
 import android.widget.FrameLayout;
 
 import com.electricdreams.shellshock.core.util.CurrencyManager;
-import com.electricdreams.shellshock.feature.history.TokenHistoryActivity;
+import com.electricdreams.shellshock.feature.history.PaymentsHistoryActivity;
 import com.electricdreams.shellshock.feature.settings.SettingsActivity;
 
 import androidx.appcompat.app.AlertDialog;
@@ -111,6 +111,11 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_modern_pos);
 
+        // Check if we have a payment amount from intent (basket checkout)
+        Intent intent = getIntent();
+        long paymentAmount = intent.getLongExtra("EXTRA_PAYMENT_AMOUNT", 0);
+        Log.d(TAG, "Created ModernPOSActivity with payment amount from basket: " + paymentAmount);
+
         // Find all views
         amountDisplay = findViewById(R.id.amount_display);
         fiatAmountDisplay = findViewById(R.id.fiat_amount_display);
@@ -151,15 +156,15 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
         });
 
         // Set up bottom navigation
-        ImageButton topUpButton = findViewById(R.id.action_top_up);
-        ImageButton balanceCheckButton = findViewById(R.id.action_balance_check);
+        ImageButton moreOptionsButton = findViewById(R.id.action_more_options);
         ImageButton historyButton = findViewById(R.id.action_history);
         ImageButton settingsButton = findViewById(R.id.action_settings);
+        ImageButton catalogButton = findViewById(R.id.action_catalog);
 
-        topUpButton.setOnClickListener(v -> startActivity(new Intent(this, TopUpActivity.class)));
-        balanceCheckButton.setOnClickListener(v -> startActivity(new Intent(this, BalanceCheckActivity.class)));
-        historyButton.setOnClickListener(v -> startActivity(new Intent(this, TokenHistoryActivity.class)));
+        moreOptionsButton.setOnClickListener(v -> showOverflowMenu(v));
+        historyButton.setOnClickListener(v -> startActivity(new Intent(this, PaymentsHistoryActivity.class)));
         settingsButton.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
+        catalogButton.setOnClickListener(v -> startActivity(new Intent(this, com.electricdreams.shellshock.feature.items.ItemSelectionActivity.class)));
 
         nfcAdapter = NfcAdapter.getDefaultAdapter(this);
         vibrator = (android.os.Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
@@ -211,7 +216,26 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
 
         // Ensure initial state
         resetToInputMode();
-        updateDisplay(); // Make sure first display is correct
+        
+        // Check if we need to set up an automatic payment from basket checkout
+        if (paymentAmount > 0) {
+            // Set input to the payment amount from basket and set requested amount
+            currentInput = new StringBuilder(String.valueOf(paymentAmount));
+            requestedAmount = paymentAmount;
+            updateDisplay();
+            
+            // Automatically proceed with payment
+            new Handler().postDelayed(() -> {
+                if (submitButton.isEnabled()) {
+                    Log.d(TAG, "Auto-initiating payment flow for basket checkout with amount: " + paymentAmount);
+                    // Directly show payment method dialog (skipping the button click)
+                    showPaymentMethodDialog(paymentAmount);
+                }
+            }, 500); // Small delay to allow UI to update
+        } else {
+            // Regular flow
+            updateDisplay(); // Make sure first display is correct
+        }
     }
 
     private void openTokenWithApp(String token) {
@@ -1125,7 +1149,7 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
         // Play success feedback
         playSuccessFeedback();
 
-        TokenHistoryActivity.addToHistory(this, token, amount);
+        PaymentsHistoryActivity.addToHistory(this, token, amount);
 
         mainHandler.post(() -> {
             if (nfcDialog != null && nfcDialog.isShowing()) {
@@ -1309,7 +1333,7 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
             toggleTheme();
             return true;
         } else if (itemId == R.id.action_history) {
-            startActivity(new Intent(this, TokenHistoryActivity.class));
+            startActivity(new Intent(this, PaymentsHistoryActivity.class));
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -1339,6 +1363,25 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
         }
     }
     
+    private void showOverflowMenu(View anchorView) {
+        androidx.appcompat.widget.PopupMenu popup = new androidx.appcompat.widget.PopupMenu(this, anchorView);
+        popup.getMenuInflater().inflate(R.menu.overflow_menu, popup.getMenu());
+
+        popup.setOnMenuItemClickListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == R.id.action_overflow_top_up) {
+                startActivity(new Intent(this, TopUpActivity.class));
+                return true;
+            } else if (itemId == R.id.action_overflow_balance_check) {
+                startActivity(new Intent(this, BalanceCheckActivity.class));
+                return true;
+            }
+            return false;
+        });
+
+        popup.show();
+    }
+
     private void processPaymentWithSavedPin(Tag tag) {
         if (savedPin == null) {
             Log.e(TAG, "No saved PIN available for payment");
