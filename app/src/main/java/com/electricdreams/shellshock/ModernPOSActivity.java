@@ -524,13 +524,14 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
         // Update secondary amount display (no animation needed)
         secondaryAmountDisplay.setText(secondaryAmountText);
         
-        // Update submit button text - always charge in sats
+        // Update submit button text - show amount in the currency/unit being entered
         if (satsValue > 0) {
-            String chargeText = "Charge " + new Amount(satsValue, Amount.Currency.BTC).toString();
+            // Use the main amount text which is already in the correct currency
+            String chargeText = "Charge " + mainAmountText;
             submitButton.setText(chargeText);
             submitButton.setEnabled(true);
             
-            // Store actual sats value for transaction
+            // Store actual sats value for transaction (always in sats for processing)
             requestedAmount = satsValue;
         } else {
             submitButton.setText("Charge");
@@ -543,6 +544,11 @@ public class ModernPOSActivity extends AppCompatActivity implements SatocashWall
         // Start PaymentRequestActivity instead of showing dialog
         Intent paymentIntent = new Intent(this, PaymentRequestActivity.class);
         paymentIntent.putExtra(PaymentRequestActivity.EXTRA_PAYMENT_AMOUNT, amount);
+        
+        // Pass the formatted amount string so it displays in the currency the user entered
+        String formattedAmount = amountDisplay.getText().toString();
+        paymentIntent.putExtra(PaymentRequestActivity.EXTRA_FORMATTED_AMOUNT, formattedAmount);
+        
         startActivityForResult(paymentIntent, REQUEST_CODE_PAYMENT);
     }
     

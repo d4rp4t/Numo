@@ -34,6 +34,7 @@ public class PaymentRequestActivity extends AppCompatActivity {
 
     private static final String TAG = "PaymentRequestActivity";
     public static final String EXTRA_PAYMENT_AMOUNT = "payment_amount";
+    public static final String EXTRA_FORMATTED_AMOUNT = "formatted_amount";
     public static final String RESULT_EXTRA_TOKEN = "payment_token";
     public static final String RESULT_EXTRA_AMOUNT = "payment_amount";
 
@@ -89,9 +90,15 @@ public class PaymentRequestActivity extends AppCompatActivity {
             return;
         }
 
-        // Display payment amount
-        String formattedAmount = new com.electricdreams.shellshock.core.model.Amount(paymentAmount, com.electricdreams.shellshock.core.model.Amount.Currency.BTC).toString();
-        largeAmountDisplay.setText("Pay " + formattedAmount);
+        // Get formatted amount string if provided, otherwise format as BTC
+        String formattedAmountString = getIntent().getStringExtra(EXTRA_FORMATTED_AMOUNT);
+        if (formattedAmountString == null || formattedAmountString.isEmpty()) {
+            // Fallback to BTC formatting if not provided
+            formattedAmountString = new com.electricdreams.shellshock.core.model.Amount(paymentAmount, com.electricdreams.shellshock.core.model.Amount.Currency.BTC).toString();
+        }
+        
+        // Display amount (without "Pay" prefix since it's in the label above)
+        largeAmountDisplay.setText(formattedAmountString);
 
         // Set up buttons
         closeButton.setOnClickListener(v -> {
