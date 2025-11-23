@@ -82,6 +82,7 @@ class ModernPOSActivity : AppCompatActivity(), SatocashWallet.OperationFeedback 
     override fun onCreate(savedInstanceState: Bundle?) {
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         isNightMode = prefs.getBoolean(KEY_NIGHT_MODE, false)
+        isUsdInputMode = prefs.getBoolean(KEY_INPUT_MODE, false)
         AppCompatDelegate.setDefaultNightMode(
             if (isNightMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO,
         )
@@ -245,6 +246,10 @@ class ModernPOSActivity : AppCompatActivity(), SatocashWallet.OperationFeedback 
         }
 
         isUsdInputMode = !isUsdInputMode
+        // Persist the input mode preference
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+            .putBoolean(KEY_INPUT_MODE, isUsdInputMode)
+            .apply()
         updateDisplay(AnimationType.CURRENCY_SWITCH)
     }
 
@@ -934,6 +939,7 @@ class ModernPOSActivity : AppCompatActivity(), SatocashWallet.OperationFeedback 
         private const val TAG = "ModernPOSActivity"
         private const val PREFS_NAME = "ShellshockPrefs"
         private const val KEY_NIGHT_MODE = "nightMode"
+        private const val KEY_INPUT_MODE = "inputMode" // true = fiat, false = satoshi
         private const val REQUEST_CODE_PAYMENT = 1001
         private val PATTERN_SUCCESS = longArrayOf(0, 50, 100, 50)
         private val PATTERN_ERROR = longArrayOf(0, 100)
