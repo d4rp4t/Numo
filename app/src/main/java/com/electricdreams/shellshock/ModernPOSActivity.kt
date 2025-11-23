@@ -46,9 +46,8 @@ import com.electricdreams.shellshock.ndef.NdefHostCardEmulationService
 class ModernPOSActivity : AppCompatActivity(), SatocashWallet.OperationFeedback {
 
     private lateinit var amountDisplay: TextView
-    private lateinit var fiatAmountDisplay: TextView
+    private lateinit var secondaryAmountDisplay: TextView
     private lateinit var submitButton: Button
-    private lateinit var currencyText: TextView
     private lateinit var switchCurrencyButton: View
     private lateinit var inputModeContainer: ConstraintLayout
 
@@ -92,9 +91,8 @@ class ModernPOSActivity : AppCompatActivity(), SatocashWallet.OperationFeedback 
         Log.d(TAG, "Created ModernPOSActivity with payment amount from basket: $paymentAmount")
 
         amountDisplay = findViewById(R.id.amount_display)
-        fiatAmountDisplay = findViewById(R.id.fiat_amount_display)
+        secondaryAmountDisplay = findViewById(R.id.secondary_amount_display)
         submitButton = findViewById(R.id.submit_button)
-        currencyText = findViewById(R.id.currency_text)
         val keypad: GridLayout = findViewById(R.id.keypad)
         switchCurrencyButton = findViewById(R.id.currency_switch_button)
         inputModeContainer = findViewById(R.id.input_mode_container)
@@ -341,19 +339,19 @@ class ModernPOSActivity : AppCompatActivity(), SatocashWallet.OperationFeedback 
                     val currencyCode = CurrencyManager.getInstance(this).getCurrentCurrency()
                     val currency = Amount.Currency.fromCode(currencyCode)
                     amountDisplayText = Amount(cents, currency).toString()
-                    fiatAmountDisplay.text = Amount(satsValue, Amount.Currency.BTC).toString()
+                    secondaryAmountDisplay.text = Amount(satsValue, Amount.Currency.BTC).toString()
                 } catch (_: NumberFormatException) {
                     val currencyCode = CurrencyManager.getInstance(this).getCurrentCurrency()
                     val currency = Amount.Currency.fromCode(currencyCode)
                     amountDisplayText = Amount(0, currency).toString()
-                    fiatAmountDisplay.text = Amount(0, Amount.Currency.BTC).toString()
+                    secondaryAmountDisplay.text = Amount(0, Amount.Currency.BTC).toString()
                     satsValue = 0
                 }
             } else {
                 val currencyCode = CurrencyManager.getInstance(this).getCurrentCurrency()
                 val currency = Amount.Currency.fromCode(currencyCode)
                 amountDisplayText = Amount(0, currency).toString()
-                fiatAmountDisplay.text = Amount(0, Amount.Currency.BTC).toString()
+                secondaryAmountDisplay.text = Amount(0, Amount.Currency.BTC).toString()
                 satsValue = 0
             }
         } else {
@@ -362,7 +360,7 @@ class ModernPOSActivity : AppCompatActivity(), SatocashWallet.OperationFeedback 
             fiatValue = bitcoinPriceWorker?.satoshisToFiat(satsValue) ?: 0.0
             val formattedFiat = bitcoinPriceWorker?.formatFiatAmount(fiatValue)
                 ?: CurrencyManager.getInstance(this).formatCurrencyAmount(0.0)
-            fiatAmountDisplay.text = formattedFiat
+            secondaryAmountDisplay.text = formattedFiat
         }
 
         if (amountDisplay.text.toString() != amountDisplayText) {
@@ -383,8 +381,6 @@ class ModernPOSActivity : AppCompatActivity(), SatocashWallet.OperationFeedback 
             submitButton.isEnabled = false
             requestedAmount = 0
         }
-
-        currencyText.text = if (isUsdInputMode) "USD" else "BTC"
     }
 
     private fun showPaymentMethodDialog(amount: Long) {
