@@ -26,7 +26,7 @@ public class NdefApduHandler {
             Log.d(TAG, "CC File selected");
             return NdefConstants.NDEF_RESPONSE_OK;
         } else if (Arrays.equals(fileId, NdefConstants.NDEF_FILE_ID)) {
-            // Check if we should send a message (only if in write mode)
+            // Only respond if we're in payment mode (write mode enabled with a message)
             if (stateManager.isInWriteMode() && !stateManager.getMessageToSend().isEmpty()) {
                 Log.d(TAG, "NDEF File selected, in write mode with message: " + stateManager.getMessageToSend());
                 byte[] ndefMessage = NdefMessageBuilder.createNdefMessage(stateManager.getMessageToSend());
@@ -36,13 +36,13 @@ public class NdefApduHandler {
                 if (stateManager.getCallback() != null) {
                     stateManager.getCallback().onMessageSent();
                 }
+                return NdefConstants.NDEF_RESPONSE_OK;
             } else {
-                // Only send empty message if write mode is disabled or no message is set
-                Log.d(TAG, "NDEF File selected, using empty message (write mode: " + stateManager.isInWriteMode() + 
-                      ", has message: " + !stateManager.getMessageToSend().isEmpty() + ")");
-                stateManager.setSelectedFile(NdefMessageBuilder.createNdefMessage(""));
+                // Not in payment mode - return error to prevent exposing "en" language code
+                Log.d(TAG, "NDEF File selected but not in payment mode (write mode: " + stateManager.isInWriteMode() + 
+                      ", has message: " + !stateManager.getMessageToSend().isEmpty() + ") - returning error");
+                return NdefConstants.NDEF_RESPONSE_ERROR;
             }
-            return NdefConstants.NDEF_RESPONSE_OK;
         } else {
             Log.e(TAG, "Unknown file selected");
             return NdefConstants.NDEF_RESPONSE_ERROR;
