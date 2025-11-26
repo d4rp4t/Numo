@@ -334,6 +334,7 @@ class PaymentsHistoryActivity : AppCompatActivity() {
                     formattedAmount = existing.formattedAmount,
                     nostrNprofile = existing.nostrNprofile,
                     nostrSecretHex = existing.nostrSecretHex,
+                    checkoutBasketJson = existing.checkoutBasketJson, // Preserve basket data
                 )
                 history[index] = updated
 
@@ -376,6 +377,7 @@ class PaymentsHistoryActivity : AppCompatActivity() {
                     formattedAmount = existing.formattedAmount,
                     nostrNprofile = nostrNprofile,
                     nostrSecretHex = nostrSecretHex,
+                    checkoutBasketJson = existing.checkoutBasketJson, // Preserve basket data
                 )
                 history[index] = updated
 
