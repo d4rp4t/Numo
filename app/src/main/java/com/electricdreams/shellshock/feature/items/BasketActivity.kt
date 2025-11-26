@@ -188,32 +188,21 @@ class BasketActivity : AppCompatActivity() {
                 val item: Item = basketItem.item
                 val quantity: Int = basketItem.quantity
 
-                // Show name with variation inline in grey
+                // Item name
+                nameView.text = item.name ?: ""
+
+                // Variation (grey text on separate line)
                 if (!item.variationName.isNullOrEmpty()) {
-                    val spannable = android.text.SpannableStringBuilder()
-                    spannable.append(item.name ?: "")
-                    spannable.append(" ")
-                    val variationStart = spannable.length
-                    spannable.append(item.variationName)
-                    spannable.setSpan(
-                        android.text.style.ForegroundColorSpan(
-                            itemView.context.getColor(R.color.color_text_tertiary)
-                        ),
-                        variationStart,
-                        spannable.length,
-                        android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                    nameView.text = spannable
-                    variationView.visibility = View.GONE
+                    variationView.text = item.variationName
+                    variationView.visibility = View.VISIBLE
                 } else {
-                    nameView.text = item.name
                     variationView.visibility = View.GONE
                 }
 
                 quantityView.text = "Qty: $quantity"
 
                 // Use item's formatted price method for consistent currency formatting
-                priceView.text = item.getFormattedPrice()
+                priceView.text = "${item.getFormattedPrice()} each"
 
                 // Calculate and format total with currency-aware formatting
                 if (basketItem.isSatsPrice()) {

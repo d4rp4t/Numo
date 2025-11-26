@@ -22,6 +22,7 @@
     <color name="color_text_tertiary">#9B9B9F</color>
     <color name="color_icon_inactive">#C5C5CC</color>
     <color name="color_icon_secondary">#9B9B9F</color>
+    <color name="color_icon_tertiary">#C7C7CC</color>
 
     <!-- Chip & Border Colors -->
     <color name="color_chip_border">#E1E1E5</color>

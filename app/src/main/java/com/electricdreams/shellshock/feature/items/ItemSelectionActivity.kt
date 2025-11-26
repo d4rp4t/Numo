@@ -168,81 +168,62 @@ class ItemSelectionActivity : AppCompatActivity() {
         inner class ItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             private val nameView: TextView = itemView.findViewById(R.id.item_name)
             private val variationView: TextView = itemView.findViewById(R.id.item_variation)
-            private val descriptionView: TextView = itemView.findViewById(R.id.item_description)
-            private val skuView: TextView = itemView.findViewById(R.id.item_sku)
             private val priceView: TextView = itemView.findViewById(R.id.item_price)
             private val quantityView: TextView = itemView.findViewById(R.id.item_quantity)
             private val decreaseButton: ImageButton = itemView.findViewById(R.id.decrease_quantity_button)
             private val basketQuantityView: TextView = itemView.findViewById(R.id.basket_quantity)
             private val increaseButton: ImageButton = itemView.findViewById(R.id.increase_quantity_button)
             private val itemImageView: ImageView = itemView.findViewById(R.id.item_image)
+            private val imagePlaceholder: ImageView? = itemView.findViewById(R.id.item_image_placeholder)
 
             fun bind(item: Item, basketQuantity: Int) {
-                // Show name with variation inline in grey
+                // Item name
+                nameView.text = item.name ?: ""
+
+                // Variation (grey text on separate line)
                 if (!item.variationName.isNullOrEmpty()) {
-                    val spannable = android.text.SpannableStringBuilder()
-                    spannable.append(item.name ?: "")
-                    spannable.append(" ")
-                    val variationStart = spannable.length
-                    spannable.append(item.variationName)
-                    spannable.setSpan(
-                        android.text.style.ForegroundColorSpan(
-                            itemView.context.getColor(R.color.color_text_tertiary)
-                        ),
-                        variationStart,
-                        spannable.length,
-                        android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                    nameView.text = spannable
-                    variationView.visibility = View.GONE
+                    variationView.text = item.variationName
+                    variationView.visibility = View.VISIBLE
                 } else {
-                    nameView.text = item.name
                     variationView.visibility = View.GONE
                 }
 
-                if (!item.description.isNullOrEmpty()) {
-                    descriptionView.visibility = View.VISIBLE
-                    descriptionView.text = item.description
-                } else {
-                    descriptionView.visibility = View.GONE
-                }
-
-                if (!item.sku.isNullOrEmpty()) {
-                    skuView.text = "SKU: ${item.sku}"
-                } else {
-                    skuView.text = ""
-                }
-
-                val currencySymbol = CurrencyManager.getInstance(itemView.context).getCurrentSymbol()
-                priceView.text = item.getFormattedPrice(currencySymbol)
+                // Price
+                priceView.text = item.getFormattedPrice()
 
                 // Only show stock info if inventory tracking is enabled
                 if (item.trackInventory) {
                     quantityView.visibility = View.VISIBLE
-                    quantityView.text = "In stock: ${item.quantity}"
+                    quantityView.text = "${item.quantity} in stock"
                 } else {
                     quantityView.visibility = View.GONE
                 }
 
                 basketQuantityView.text = basketQuantity.toString()
 
+                // Image
                 if (!item.imagePath.isNullOrEmpty()) {
                     val imageFile = File(item.imagePath!!)
                     if (imageFile.exists()) {
                         val bitmap: Bitmap? = BitmapFactory.decodeFile(imageFile.absolutePath)
                         if (bitmap != null) {
                             itemImageView.setImageBitmap(bitmap)
+                            imagePlaceholder?.visibility = View.GONE
                         } else {
-                            itemImageView.setImageResource(R.drawable.ic_image_placeholder)
+                            itemImageView.setImageBitmap(null)
+                            imagePlaceholder?.visibility = View.VISIBLE
                         }
                     } else {
-                        itemImageView.setImageResource(R.drawable.ic_image_placeholder)
+                        itemImageView.setImageBitmap(null)
+                        imagePlaceholder?.visibility = View.VISIBLE
                     }
                 } else {
-                    itemImageView.setImageResource(R.drawable.ic_image_placeholder)
+                    itemImageView.setImageBitmap(null)
+                    imagePlaceholder?.visibility = View.VISIBLE
                 }
 
                 decreaseButton.isEnabled = basketQuantity > 0
+                decreaseButton.alpha = if (basketQuantity > 0) 1f else 0.4f
 
                 // Only enforce stock limits when inventory tracking is enabled
                 val hasStock = if (item.trackInventory) {
@@ -251,6 +232,7 @@ class ItemSelectionActivity : AppCompatActivity() {
                     true // No limit when not tracking inventory
                 }
                 increaseButton.isEnabled = hasStock
+                increaseButton.alpha = if (hasStock) 1f else 0.4f
 
                 decreaseButton.setOnClickListener {
                     if (basketQuantity > 0) {
