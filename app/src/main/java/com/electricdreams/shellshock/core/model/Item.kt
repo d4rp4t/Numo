@@ -48,18 +48,20 @@ data class Item(
 
     /**
      * Get formatted price string based on price type.
-     * Uses device locale for number formatting.
+     * Uses the Amount class for consistent currency-aware formatting:
+     * - USD, GBP: period decimal (e.g., $4.20, £4.20)
+     * - EUR: comma decimal (e.g., €4,20)
+     * - JPY: no decimals (e.g., ¥420)
+     * - SATS: shows as "X sats"
      */
     fun getFormattedPrice(currencySymbol: String = "$"): String {
         return when (priceType) {
             PriceType.SATS -> "$priceSats sats"
             PriceType.FIAT -> {
-                val format = java.text.NumberFormat.getCurrencyInstance(java.util.Locale.getDefault())
-                // We want to use our own currency symbol but locale's number formatting
-                val numberFormat = java.text.NumberFormat.getNumberInstance(java.util.Locale.getDefault())
-                numberFormat.minimumFractionDigits = 2
-                numberFormat.maximumFractionDigits = 2
-                "$currencySymbol${numberFormat.format(price)}"
+                // Convert price (in major units like dollars) to minor units (cents)
+                val minorUnits = Math.round(price * 100)
+                val currency = Amount.Currency.fromCode(priceCurrency)
+                Amount(minorUnits, currency).toString()
             }
         }
     }

@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.electricdreams.shellshock.ModernPOSActivity
 import com.electricdreams.shellshock.R
+import com.electricdreams.shellshock.core.model.Amount
 import com.electricdreams.shellshock.core.model.BasketItem
 import com.electricdreams.shellshock.core.model.Item
 import com.electricdreams.shellshock.core.util.BasketManager
@@ -117,18 +118,18 @@ class BasketActivity : AppCompatActivity() {
         basketCountView.text = itemCount.toString()
 
         val formattedTotal = if (itemCount > 0) {
-            val currencySymbol = CurrencyManager.getInstance(this).getCurrentSymbol()
-            val numberFormat = java.text.NumberFormat.getNumberInstance(java.util.Locale.getDefault())
-            numberFormat.minimumFractionDigits = 2
-            numberFormat.maximumFractionDigits = 2
+            val currencyCode = CurrencyManager.getInstance(this).getCurrentCurrency()
+            val currency = Amount.Currency.fromCode(currencyCode)
             
             // Show both fiat and sats if there's a mix
             if (fiatTotal > 0 && satsTotal > 0) {
-                "$currencySymbol${numberFormat.format(fiatTotal)} + $satsTotal sats"
+                val fiatAmount = Amount.fromMajorUnits(fiatTotal, currency)
+                "$fiatAmount + $satsTotal sats"
             } else if (satsTotal > 0) {
                 "$satsTotal sats"
             } else {
-                "$currencySymbol${numberFormat.format(fiatTotal)}"
+                val fiatAmount = Amount.fromMajorUnits(fiatTotal, currency)
+                fiatAmount.toString()
             }
         } else {
             "0.00"
@@ -211,22 +212,19 @@ class BasketActivity : AppCompatActivity() {
 
                 quantityView.text = "Qty: $quantity"
 
-                val currencySymbol = CurrencyManager.getInstance(itemView.context).getCurrentSymbol()
-                
-                // Use item's formatted price method for consistent locale formatting
-                priceView.text = item.getFormattedPrice(currencySymbol)
+                // Use item's formatted price method for consistent currency formatting
+                priceView.text = item.getFormattedPrice()
 
-                // Calculate and format total with locale-aware formatting
-                val numberFormat = java.text.NumberFormat.getNumberInstance(java.util.Locale.getDefault())
-                numberFormat.minimumFractionDigits = 2
-                numberFormat.maximumFractionDigits = 2
-                
+                // Calculate and format total with currency-aware formatting
                 if (basketItem.isSatsPrice()) {
                     val totalSats = basketItem.getTotalSats()
                     totalView.text = "$totalSats sats"
                 } else {
                     val total = basketItem.getTotalPrice()
-                    totalView.text = "$currencySymbol${numberFormat.format(total)}"
+                    val currencyCode = CurrencyManager.getInstance(itemView.context).getCurrentCurrency()
+                    val currency = Amount.Currency.fromCode(currencyCode)
+                    val totalAmount = Amount.fromMajorUnits(total, currency)
+                    totalView.text = totalAmount.toString()
                 }
 
                 removeButton.setOnClickListener {

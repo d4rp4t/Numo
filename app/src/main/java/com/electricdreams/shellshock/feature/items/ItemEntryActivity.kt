@@ -27,6 +27,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.electricdreams.shellshock.R
+import com.electricdreams.shellshock.core.model.Amount
 import com.electricdreams.shellshock.core.model.Item
 import com.electricdreams.shellshock.core.model.PriceType
 import com.electricdreams.shellshock.core.util.CurrencyManager
@@ -358,11 +359,12 @@ class ItemEntryActivity : AppCompatActivity() {
     }
 
     private fun formatFiatPrice(price: Double): String {
-        // Use locale-aware formatting for decimal separator
-        val numberFormat = java.text.NumberFormat.getNumberInstance(Locale.getDefault())
-        numberFormat.minimumFractionDigits = if (price == price.toLong().toDouble()) 0 else 2
-        numberFormat.maximumFractionDigits = 2
-        return numberFormat.format(price)
+        // Use Amount class for consistent currency-aware formatting
+        val currency = Amount.Currency.fromCode(currencyManager.getCurrentCurrency())
+        val minorUnits = Math.round(price * 100)
+        val amount = Amount(minorUnits, currency)
+        // Return without symbol since the symbol is shown separately in the UI
+        return amount.toStringWithoutSymbol()
     }
 
     private fun launchBarcodeScanner() {
