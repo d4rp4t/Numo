@@ -130,6 +130,8 @@ class PaymentsHistoryActivity : AppCompatActivity() {
             putExtra(TransactionDetailActivity.EXTRA_TRANSACTION_PAYMENT_TYPE, entry.paymentType)
             putExtra(TransactionDetailActivity.EXTRA_TRANSACTION_LIGHTNING_INVOICE, entry.lightningInvoice)
             putExtra(TransactionDetailActivity.EXTRA_CHECKOUT_BASKET_JSON, entry.checkoutBasketJson)
+            putExtra(TransactionDetailActivity.EXTRA_TRANSACTION_TIP_AMOUNT, entry.tipAmountSats)
+            putExtra(TransactionDetailActivity.EXTRA_TRANSACTION_TIP_PERCENTAGE, entry.tipPercentage)
         }
 
         startActivityForResult(intent, REQUEST_TRANSACTION_DETAIL)
@@ -291,6 +293,8 @@ class PaymentsHistoryActivity : AppCompatActivity() {
                     lightningMintUrl = lightningMintUrl,
                     formattedAmount = existing.formattedAmount,
                     checkoutBasketJson = existing.checkoutBasketJson, // Preserve basket data
+                    tipAmountSats = existing.tipAmountSats, // Preserve tip info
+                    tipPercentage = existing.tipPercentage, // Preserve tip info
                 )
                 history[index] = updated
 
@@ -378,6 +382,52 @@ class PaymentsHistoryActivity : AppCompatActivity() {
                     nostrNprofile = nostrNprofile,
                     nostrSecretHex = nostrSecretHex,
                     checkoutBasketJson = existing.checkoutBasketJson, // Preserve basket data
+                )
+                history[index] = updated
+
+                val prefs = context.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                prefs.edit().putString(KEY_HISTORY, Gson().toJson(history)).apply()
+            }
+        }
+
+        /**
+         * Update a pending payment with tip information.
+         */
+        @JvmStatic
+        fun updatePendingWithTipInfo(
+            context: Context,
+            paymentId: String,
+            tipAmountSats: Long,
+            tipPercentage: Int,
+            newTotalAmount: Long,
+        ) {
+            val history = getPaymentHistory(context).toMutableList()
+            val index = history.indexOfFirst { it.id == paymentId }
+
+            if (index >= 0) {
+                val existing = history[index]
+                val updated = PaymentHistoryEntry(
+                    id = existing.id,
+                    token = existing.token,
+                    amount = newTotalAmount,
+                    date = existing.date,
+                    rawUnit = existing.getUnit(),
+                    rawEntryUnit = existing.getEntryUnit(),
+                    enteredAmount = existing.enteredAmount,
+                    bitcoinPrice = existing.bitcoinPrice,
+                    mintUrl = existing.mintUrl,
+                    paymentRequest = existing.paymentRequest,
+                    rawStatus = existing.getStatus(),
+                    paymentType = existing.paymentType,
+                    lightningInvoice = existing.lightningInvoice,
+                    lightningQuoteId = existing.lightningQuoteId,
+                    lightningMintUrl = existing.lightningMintUrl,
+                    formattedAmount = existing.formattedAmount,
+                    nostrNprofile = existing.nostrNprofile,
+                    nostrSecretHex = existing.nostrSecretHex,
+                    checkoutBasketJson = existing.checkoutBasketJson,
+                    tipAmountSats = tipAmountSats,
+                    tipPercentage = tipPercentage,
                 )
                 history[index] = updated
 

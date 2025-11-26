@@ -317,6 +317,17 @@
                 android:value=".feature.settings.SettingsActivity" />
         </activity>
         
+        <activity android:name="com.electricdreams.shellshock.feature.tips.TipsSettingsActivity"
+            android:exported="false"
+            android:label="Tips"
+            android:theme="@style/Theme.Shellshock"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:parentActivityName=".feature.settings.SettingsActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".feature.settings.SettingsActivity" />
+        </activity>
+        
         <activity android:name="com.electricdreams.shellshock.feature.items.ItemSelectionActivity"
             android:exported="false"
             android:label="Checkout"

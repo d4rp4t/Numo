@@ -61,6 +61,10 @@ class BasketReceiptActivity : AppCompatActivity() {
     private var totalSatoshis: Long = 0
     private var enteredAmount: Long = 0
     private var enteredCurrency: String = "USD"
+    
+    // Tip information
+    private var tipAmountSats: Long = 0
+    private var tipPercentage: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -123,9 +127,14 @@ class BasketReceiptActivity : AppCompatActivity() {
         enteredAmount = intent.getLongExtra(EXTRA_ENTERED_AMOUNT, 0)
         enteredCurrency = intent.getStringExtra(EXTRA_ENTERED_CURRENCY) ?: "USD"
         
+        // Load tip information
+        tipAmountSats = intent.getLongExtra(EXTRA_TIP_AMOUNT_SATS, 0)
+        tipPercentage = intent.getIntExtra(EXTRA_TIP_PERCENTAGE, 0)
+        
         android.util.Log.d("BasketReceiptActivity", "Received basket JSON: ${basketJson?.length ?: 0} chars")
         android.util.Log.d("BasketReceiptActivity", "Parsed basket: ${basket?.items?.size ?: 0} items")
         android.util.Log.d("BasketReceiptActivity", "Non-basket fallback: totalSats=$totalSatoshis, enteredAmount=$enteredAmount, currency=$enteredCurrency")
+        android.util.Log.d("BasketReceiptActivity", "Tip: ${tipAmountSats} sats ($tipPercentage%)")
     }
     
     private fun printReceipt() {
@@ -448,6 +457,11 @@ class BasketReceiptActivity : AppCompatActivity() {
             satsItemsRow.visibility = View.GONE
         }
 
+        // Show tip as separate line item if present
+        if (tipAmountSats > 0) {
+            addTipRow(currency)
+        }
+
         // Final total - with proper primary/secondary display
         if (showSatsAsPrimary) {
             finalTotalLabel.text = "Total"
@@ -470,6 +484,41 @@ class BasketReceiptActivity : AppCompatActivity() {
                 satsEquivalentText.visibility = View.GONE
             }
         }
+    }
+
+    private fun addTipRow(currency: Amount.Currency) {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = (8 * resources.displayMetrics.density).toInt()
+            }
+        }
+
+        val label = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            text = if (tipPercentage > 0) "Tip ($tipPercentage%)" else "Tip"
+            textSize = 15f
+            setTextColor(resources.getColor(R.color.color_success_green, theme))
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+        }
+
+        val value = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            text = Amount(tipAmountSats, Amount.Currency.BTC).toString()
+            textSize = 15f
+            setTextColor(resources.getColor(R.color.color_success_green, theme))
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+        }
+
+        row.addView(label)
+        row.addView(value)
+        vatBreakdownContainer.addView(row)
     }
 
     private fun addVatRow(rate: Int, amountCents: Long, currency: Amount.Currency) {
@@ -534,5 +583,7 @@ class BasketReceiptActivity : AppCompatActivity() {
         const val EXTRA_TOTAL_SATOSHIS = "total_satoshis"
         const val EXTRA_ENTERED_AMOUNT = "entered_amount"
         const val EXTRA_ENTERED_CURRENCY = "entered_currency"
+        const val EXTRA_TIP_AMOUNT_SATS = "tip_amount_sats"
+        const val EXTRA_TIP_PERCENTAGE = "tip_percentage"
     }
 }

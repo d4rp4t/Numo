@@ -53,6 +53,9 @@ class ReceiptPrinter(private val context: Context) {
         val totalSatoshis: Long = 0,
         val enteredAmount: Long = 0, // in minor units (cents)
         val enteredCurrency: String = "USD",
+        // Tip information
+        val tipAmountSats: Long = 0,
+        val tipPercentage: Int = 0,
     )
 
     /**
@@ -243,6 +246,17 @@ class ReceiptPrinter(private val context: Context) {
             }
         }
 
+        // Add tip as separate line if present
+        if (data.tipAmountSats > 0) {
+            val tipLabel = if (data.tipPercentage > 0) {
+                "Tip (${data.tipPercentage}%):"
+            } else {
+                "Tip:"
+            }
+            sb.appendLine(leftRight(tipLabel, formatSats(data.tipAmountSats)))
+            sb.appendLine(line())
+        }
+
         // GRAND TOTAL
         sb.appendLine()
         if (showSatsAsPrimary || (basket == null && data.enteredAmount == 0L)) {
@@ -423,6 +437,18 @@ class ReceiptPrinter(private val context: Context) {
                     """)
                 }
                 append("<div class=\"divider\"></div>")
+            }
+            
+            // Add tip row if present
+            if (data.tipAmountSats > 0) {
+                val tipLabel = if (data.tipPercentage > 0) "Tip (${data.tipPercentage}%)" else "Tip"
+                append("""
+                <div class="row" style="color: #00C244; font-weight: bold;">
+                    <span>$tipLabel:</span>
+                    <span>${formatSats(data.tipAmountSats)}</span>
+                </div>
+                <div class="divider"></div>
+                """)
             }
         }
 

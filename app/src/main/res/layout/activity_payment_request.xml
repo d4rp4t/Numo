@@ -176,7 +176,7 @@
         android:id="@+id/icons_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="16dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         app:layout_constraintEnd_toEndOf="parent"
@@ -201,19 +201,46 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Status Text (Hidden or subtle) -->
+    <!-- Tip Display (shows when tip is added) -->
+    <TextView
+        android:id="@+id/tip_display_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="+ ₿100 tip"
+        android:textColor="@color/color_success_green"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/icons_container" />
+
+    <!-- Tip Selection Container -->
+    <com.electricdreams.shellshock.feature.tips.TipSelectionView
+        android:id="@+id/tip_selection_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="12dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tip_display_text" />
+
+    <!-- Status Text (Hidden) -->
     <TextView
         android:id="@+id/payment_status_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="4dp"
         android:text="Waiting for payment..."
         android:textColor="@color/color_text_secondary"
         android:textSize="14sp"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/icons_container" />
+        app:layout_constraintTop_toBottomOf="@id/tip_selection_view" />
 
     <!-- Lightning / Cashu Switcher (tabs-style) now at the bottom -->
     <LinearLayout

@@ -35,6 +35,8 @@ class TransactionDetailActivity : AppCompatActivity() {
     private var paymentType: String? = null
     private var lightningInvoice: String? = null
     private var checkoutBasketJson: String? = null
+    private var tipAmountSats: Long = 0
+    private var tipPercentage: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,6 +58,8 @@ class TransactionDetailActivity : AppCompatActivity() {
         paymentType = intent.getStringExtra(EXTRA_TRANSACTION_PAYMENT_TYPE)
         lightningInvoice = intent.getStringExtra(EXTRA_TRANSACTION_LIGHTNING_INVOICE)
         checkoutBasketJson = intent.getStringExtra(EXTRA_CHECKOUT_BASKET_JSON)
+        tipAmountSats = intent.getLongExtra(EXTRA_TRANSACTION_TIP_AMOUNT, 0)
+        tipPercentage = intent.getIntExtra(EXTRA_TRANSACTION_TIP_PERCENTAGE, 0)
 
         // Create entry object (normalize nullable unit fields via Kotlin defaults)
         entry = PaymentHistoryEntry(
@@ -68,6 +72,8 @@ class TransactionDetailActivity : AppCompatActivity() {
             bitcoinPrice = bitcoinPrice,
             mintUrl = mintUrl,
             paymentRequest = paymentRequest,
+            tipAmountSats = tipAmountSats,
+            tipPercentage = tipPercentage,
         )
 
         setupViews()
@@ -309,6 +315,10 @@ class TransactionDetailActivity : AppCompatActivity() {
             putExtra(BasketReceiptActivity.EXTRA_TOTAL_SATOSHIS, entry.amount)
             putExtra(BasketReceiptActivity.EXTRA_ENTERED_AMOUNT, entry.enteredAmount)
             putExtra(BasketReceiptActivity.EXTRA_ENTERED_CURRENCY, entry.getEntryUnit())
+            
+            // Pass tip information
+            putExtra(BasketReceiptActivity.EXTRA_TIP_AMOUNT_SATS, entry.tipAmountSats)
+            putExtra(BasketReceiptActivity.EXTRA_TIP_PERCENTAGE, entry.tipPercentage)
         }
         startActivity(intent)
     }
@@ -410,5 +420,7 @@ class TransactionDetailActivity : AppCompatActivity() {
         const val EXTRA_TRANSACTION_PAYMENT_TYPE = "transaction_payment_type"
         const val EXTRA_TRANSACTION_LIGHTNING_INVOICE = "transaction_lightning_invoice"
         const val EXTRA_CHECKOUT_BASKET_JSON = "checkout_basket_json"
+        const val EXTRA_TRANSACTION_TIP_AMOUNT = "transaction_tip_amount"
+        const val EXTRA_TRANSACTION_TIP_PERCENTAGE = "transaction_tip_percentage"
     }
 }
