@@ -26,6 +26,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -161,6 +162,11 @@ class OnboardingActivity : AppCompatActivity() {
     private val mintProgressViews = mutableMapOf<String, View>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // CRITICAL: Force light mode for onboarding - must be before super.onCreate()
+        // This ensures consistent light theme regardless of system dark mode setting
+        // The app's dark mode preference (default: OFF) is only applied in ModernPOSActivity
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+        
         super.onCreate(savedInstanceState)
 
         // Check if onboarding is already complete - redirect to main app
@@ -181,19 +187,27 @@ class OnboardingActivity : AppCompatActivity() {
     }
 
     private fun setupWindow() {
+        // Enable edge-to-edge display
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
-        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        
+        // Set the background color for status and nav bars to match content
+        // Use the light background color (#F6F7F8) for seamless appearance
+        val bgColor = android.graphics.Color.parseColor("#F6F7F8")
+        window.statusBarColor = bgColor
+        window.navigationBarColor = bgColor
 
+        // Light status bar icons (dark icons on light background)
         WindowInsetsControllerCompat(window, window.decorView).apply {
             isAppearanceLightStatusBars = true
             isAppearanceLightNavigationBars = true
         }
 
+        // Apply insets as padding to content, but don't consume them
+        // This makes content avoid system bars while background extends behind them
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { v, windowInsets ->
             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(0, insets.top, 0, insets.bottom)
-            WindowInsetsCompat.CONSUMED
+            windowInsets
         }
     }
 
