@@ -3,16 +3,22 @@ package com.electricdreams.shellshock.feature.items
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -41,6 +47,7 @@ import com.electricdreams.shellshock.core.util.CurrencyManager
 import com.electricdreams.shellshock.core.util.ItemManager
 import com.electricdreams.shellshock.core.worker.BitcoinPriceWorker
 import java.io.File
+import java.util.UUID
 
 class ItemSelectionActivity : AppCompatActivity() {
 
@@ -436,13 +443,99 @@ class ItemSelectionActivity : AppCompatActivity() {
 
     private inner class ItemsAdapter : RecyclerView.Adapter<ItemsAdapter.ItemViewHolder>() {
 
-        private var items: List<Item> = emptyList()
+        private var items: MutableList<Item> = mutableListOf()
         private val basketQuantities: MutableMap<String, Int> = mutableMapOf()
+        
+        // Track which position has variation input expanded
+        private var expandedPosition: Int = -1
+        
+        // Store custom variation items (items created during this session)
+        private val customVariationItems: MutableList<Item> = mutableListOf()
 
         fun updateItems(newItems: List<Item>) {
-            items = newItems
+            // Combine original items with custom variation items
+            items = (newItems + customVariationItems).toMutableList()
             refreshBasketQuantities()
             notifyDataSetChanged()
+        }
+        
+        /**
+         * Add a custom variation item to the list and basket
+         */
+        fun addCustomVariation(baseItem: Item, variationName: String) {
+            // Create a new item with custom variation and unique ID
+            val customItem = baseItem.copy(
+                id = "custom_${baseItem.id}_${UUID.randomUUID().toString().take(8)}",
+                uuid = UUID.randomUUID().toString(),
+                variationName = variationName
+            )
+            
+            // Add to custom items list
+            customVariationItems.add(customItem)
+            
+            // Find position to insert (right after the base item)
+            val baseIndex = items.indexOfFirst { it.id == baseItem.id }
+            if (baseIndex >= 0) {
+                items.add(baseIndex + 1, customItem)
+                notifyItemInserted(baseIndex + 1)
+            } else {
+                items.add(customItem)
+                notifyItemInserted(items.size - 1)
+            }
+            
+            // Add to basket with quantity 1
+            basketManager.addItem(customItem, 1)
+            basketQuantities[customItem.id!!] = 1
+            
+            // Refresh basket UI
+            refreshBasket()
+            
+            // Collapse the variation input
+            collapseVariationInput()
+        }
+        
+        /**
+         * Collapse any open variation input
+         */
+        fun collapseVariationInput() {
+            // Clear focus before collapsing to prevent NestedScrollView crash
+            mainScrollView.clearFocus()
+            currentFocus?.clearFocus()
+            
+            val previousExpanded = expandedPosition
+            expandedPosition = -1
+            if (previousExpanded >= 0 && previousExpanded < items.size) {
+                notifyItemChanged(previousExpanded)
+            }
+        }
+        
+        /**
+         * Toggle variation input for an item
+         */
+        fun toggleVariationInput(position: Int) {
+            // CRITICAL: Clear focus before any view changes to prevent NestedScrollView crash
+            // The crash occurs because NestedScrollView caches a reference to focused views
+            // and when RecyclerView recycles them, that reference becomes invalid
+            mainScrollView.clearFocus()
+            currentFocus?.clearFocus()
+            
+            val previousExpanded = expandedPosition
+            
+            if (expandedPosition == position) {
+                // Collapse if already expanded
+                expandedPosition = -1
+            } else {
+                // Expand this one
+                expandedPosition = position
+            }
+            
+            // Notify changes
+            if (previousExpanded >= 0 && previousExpanded < items.size) {
+                notifyItemChanged(previousExpanded)
+            }
+            if (expandedPosition >= 0) {
+                notifyItemChanged(expandedPosition)
+            }
         }
 
         private fun refreshBasketQuantities() {
@@ -454,11 +547,26 @@ class ItemSelectionActivity : AppCompatActivity() {
 
         fun clearAllQuantities() {
             basketQuantities.clear()
+            customVariationItems.clear()
             notifyDataSetChanged()
         }
 
         fun resetItemQuantity(itemId: String) {
             basketQuantities.remove(itemId)
+            
+            // If it's a custom variation item with 0 quantity, remove it from the list
+            if (itemId.startsWith("custom_")) {
+                val customItem = customVariationItems.find { it.id == itemId }
+                if (customItem != null) {
+                    customVariationItems.remove(customItem)
+                    val index = items.indexOfFirst { it.id == itemId }
+                    if (index >= 0) {
+                        items.removeAt(index)
+                        notifyItemRemoved(index)
+                        return
+                    }
+                }
+            }
             notifyDataSetChanged()
         }
 
@@ -471,12 +579,15 @@ class ItemSelectionActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: ItemViewHolder, position: Int) {
             val item = items[position]
             val quantity = basketQuantities[item.id] ?: 0
-            holder.bind(item, quantity, position == items.lastIndex)
+            val isExpanded = position == expandedPosition
+            val isCustomVariation = item.id?.startsWith("custom_") == true
+            holder.bind(item, quantity, position == items.lastIndex, isExpanded, isCustomVariation, position)
         }
 
         override fun getItemCount(): Int = items.size
 
         inner class ItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            private val mainContent: View = itemView.findViewById(R.id.main_content)
             private val nameView: TextView = itemView.findViewById(R.id.item_name)
             private val variationView: TextView = itemView.findViewById(R.id.item_variation)
             private val priceView: TextView = itemView.findViewById(R.id.item_price)
@@ -487,20 +598,31 @@ class ItemSelectionActivity : AppCompatActivity() {
             private val itemImageView: ImageView = itemView.findViewById(R.id.item_image)
             private val imagePlaceholder: ImageView? = itemView.findViewById(R.id.item_image_placeholder)
             private val divider: View? = itemView.findViewById(R.id.divider)
+            
+            // Variation input views
+            private val variationInputContainer: LinearLayout = itemView.findViewById(R.id.variation_input_container)
+            private val variationInput: EditText = itemView.findViewById(R.id.variation_input)
+            private val addVariationButton: TextView = itemView.findViewById(R.id.add_variation_button)
 
-            fun bind(item: Item, basketQuantity: Int, isLast: Boolean) {
+            fun bind(item: Item, basketQuantity: Int, isLast: Boolean, isExpanded: Boolean, isCustomVariation: Boolean, position: Int) {
                 nameView.text = item.name ?: ""
 
                 if (!item.variationName.isNullOrEmpty()) {
                     variationView.text = item.variationName
                     variationView.visibility = View.VISIBLE
+                    // Custom variations get a special color indicator
+                    if (isCustomVariation) {
+                        variationView.setTextColor(itemView.context.getColor(R.color.color_accent_blue))
+                    } else {
+                        variationView.setTextColor(itemView.context.getColor(R.color.color_text_tertiary))
+                    }
                 } else {
                     variationView.visibility = View.GONE
                 }
 
                 priceView.text = item.getFormattedPrice()
 
-                if (item.trackInventory) {
+                if (item.trackInventory && !isCustomVariation) {
                     stockView.visibility = View.VISIBLE
                     stockView.text = "${item.quantity} in stock"
                 } else {
@@ -516,26 +638,136 @@ class ItemSelectionActivity : AppCompatActivity() {
                 decreaseButton.isEnabled = basketQuantity > 0
                 decreaseButton.alpha = if (basketQuantity > 0) 1f else 0.4f
 
-                val hasStock = if (item.trackInventory) item.quantity > basketQuantity else true
+                val hasStock = if (item.trackInventory && !isCustomVariation) item.quantity > basketQuantity else true
                 increaseButton.isEnabled = hasStock
                 increaseButton.alpha = if (hasStock) 1f else 0.4f
 
-                // Hide divider on last item
-                divider?.visibility = if (isLast) View.GONE else View.VISIBLE
+                // Hide divider on last item or when variation input is expanded
+                divider?.visibility = if (isLast || isExpanded) View.GONE else View.VISIBLE
+
+                // Handle variation input container visibility
+                setupVariationInput(item, isExpanded, isCustomVariation, position)
 
                 decreaseButton.setOnClickListener {
                     if (basketQuantity > 0) {
-                        updateBasketItem(item, basketQuantity - 1)
+                        updateBasketItem(item, basketQuantity - 1, isCustomVariation)
                     }
                 }
 
                 increaseButton.setOnClickListener {
                     if (hasStock) {
-                        updateBasketItem(item, basketQuantity + 1)
+                        updateBasketItem(item, basketQuantity + 1, isCustomVariation)
                     } else {
                         Toast.makeText(itemView.context, "No more stock available", Toast.LENGTH_SHORT).show()
                     }
                 }
+                
+                // Long press to show variation input (only for base items, not custom variations)
+                if (!isCustomVariation) {
+                    mainContent.setOnLongClickListener {
+                        itemView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        toggleVariationInput(position)
+                        true
+                    }
+                } else {
+                    mainContent.setOnLongClickListener(null)
+                }
+            }
+            
+            private fun setupVariationInput(item: Item, isExpanded: Boolean, isCustomVariation: Boolean, position: Int) {
+                // Don't show variation input for custom variation items
+                if (isCustomVariation) {
+                    variationInputContainer.visibility = View.GONE
+                    return
+                }
+                
+                if (isExpanded) {
+                    // Show with smooth animation
+                    if (variationInputContainer.visibility != View.VISIBLE) {
+                        // Disable scroll view's descendant focus handling during animation
+                        // to prevent "parameter must be a descendant" crash
+                        mainScrollView.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                        
+                        variationInputContainer.visibility = View.VISIBLE
+                        variationInputContainer.alpha = 0f
+                        variationInputContainer.translationY = -20f
+                        
+                        AnimatorSet().apply {
+                            playTogether(
+                                ObjectAnimator.ofFloat(variationInputContainer, View.ALPHA, 0f, 1f),
+                                ObjectAnimator.ofFloat(variationInputContainer, View.TRANSLATION_Y, -20f, 0f)
+                            )
+                            duration = 250
+                            interpolator = DecelerateInterpolator()
+                            addListener(object : android.animation.AnimatorListenerAdapter() {
+                                override fun onAnimationEnd(animation: android.animation.Animator) {
+                                    // Re-enable focus handling after animation completes
+                                    mainScrollView.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+                                    
+                                    // Now safely focus the input and show keyboard
+                                    variationInput.text.clear()
+                                    variationInput.requestFocus()
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        val imm = itemView.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                                        imm.showSoftInput(variationInput, InputMethodManager.SHOW_IMPLICIT)
+                                    }, 50)
+                                }
+                            })
+                            start()
+                        }
+                    }
+                    
+                    // Setup add button
+                    addVariationButton.setOnClickListener {
+                        val variationText = variationInput.text.toString().trim()
+                        if (variationText.isNotEmpty()) {
+                            addCustomVariation(item, variationText)
+                            hideKeyboard()
+                        } else {
+                            Toast.makeText(itemView.context, "Enter a variation name", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    
+                    // Handle keyboard "Done" action
+                    variationInput.setOnEditorActionListener { _, actionId, _ ->
+                        if (actionId == EditorInfo.IME_ACTION_DONE) {
+                            val variationText = variationInput.text.toString().trim()
+                            if (variationText.isNotEmpty()) {
+                                addCustomVariation(item, variationText)
+                                hideKeyboard()
+                            }
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                } else {
+                    // Hide variation input
+                    if (variationInputContainer.visibility == View.VISIBLE) {
+                        AnimatorSet().apply {
+                            playTogether(
+                                ObjectAnimator.ofFloat(variationInputContainer, View.ALPHA, 1f, 0f),
+                                ObjectAnimator.ofFloat(variationInputContainer, View.TRANSLATION_Y, 0f, -10f)
+                            )
+                            duration = 150
+                            interpolator = DecelerateInterpolator()
+                            addListener(object : android.animation.AnimatorListenerAdapter() {
+                                override fun onAnimationEnd(animation: android.animation.Animator) {
+                                    variationInputContainer.visibility = View.GONE
+                                    variationInputContainer.translationY = 0f
+                                }
+                            })
+                            start()
+                        }
+                    } else {
+                        variationInputContainer.visibility = View.GONE
+                    }
+                }
+            }
+            
+            private fun hideKeyboard() {
+                val imm = itemView.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(variationInput.windowToken, 0)
             }
 
             private fun loadItemImage(item: Item) {
@@ -554,12 +786,30 @@ class ItemSelectionActivity : AppCompatActivity() {
                 imagePlaceholder?.visibility = View.VISIBLE
             }
 
-            private fun updateBasketItem(item: Item, newQuantity: Int) {
+            private fun updateBasketItem(item: Item, newQuantity: Int, isCustomVariation: Boolean) {
                 val wasEmpty = basketManager.getTotalItemCount() == 0
 
                 if (newQuantity <= 0) {
                     basketManager.removeItem(item.id!!)
                     basketQuantities.remove(item.id!!)
+                    
+                    // Remove custom variation items from the list when quantity reaches 0
+                    if (isCustomVariation) {
+                        customVariationItems.removeAll { it.id == item.id }
+                        val index = items.indexOfFirst { it.id == item.id }
+                        if (index >= 0) {
+                            items.removeAt(index)
+                            // Adjust expanded position if needed
+                            if (expandedPosition > index) {
+                                expandedPosition--
+                            } else if (expandedPosition == index) {
+                                expandedPosition = -1
+                            }
+                            notifyItemRemoved(index)
+                            refreshBasket()
+                            return
+                        }
+                    }
                 } else {
                     val updated = basketManager.updateItemQuantity(item.id!!, newQuantity)
                     if (!updated) {
