@@ -189,12 +189,25 @@ class ItemManager private constructor(context: Context) {
     fun getAllItems(): List<Item> = ArrayList(items)
 
     /**
-     * Find an item by its SKU (barcode).
-     * @param sku SKU to search for.
+     * Find an item by its Gtin (barcode).
+     * @param gtin Gtin to search for.
      * @return Item if found, null otherwise.
      */
-    fun findItemBySku(sku: String): Item? {
-        return items.find { it.sku?.equals(sku, ignoreCase = true) == true }
+    fun findItemByGtin(gtin: String): Item? {
+        return items.find { it.gtin?.equals(gtin, ignoreCase = true) == true }
+    }
+
+    /**
+     * Check if a Gtin already exists in the catalog.
+     * @param gtin Gtin to check.
+     * @param excludeItemId Optional item ID to exclude from the check (for editing existing items).
+     * @return true if Gtin exists (and belongs to a different item), false otherwise.
+     */
+    fun isGtinDuplicate(gtin: String, excludeItemId: String? = null): Boolean {
+        if (gtin.isBlank()) return false
+        return items.any { item ->
+            item.gtin?.equals(gtin, ignoreCase = true) == true && item.id != excludeItemId
+        }
     }
 
     /**

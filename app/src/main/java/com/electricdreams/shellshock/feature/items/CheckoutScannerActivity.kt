@@ -71,7 +71,7 @@ class CheckoutScannerActivity : AppCompatActivity() {
 
     private var currentItem: Item? = null
     private var currentQuantity: Int = 0
-    private var lastScannedSku: String? = null
+    private var lastScannedGtin: String? = null
     private var lastScanTime: Long = 0
     private var barcodeLeftView = true
     private var basketUpdated = false
@@ -304,11 +304,11 @@ class CheckoutScannerActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun onBarcodeDetected(sku: String) {
+    private fun onBarcodeDetected(gtin: String) {
         val currentTime = System.currentTimeMillis()
         
         // Check if this is the same barcode and we're within cooldown period
-        if (sku == lastScannedSku) {
+        if (gtin == lastScannedGtin) {
             // Same barcode - check if cooldown has passed
             if (currentTime - lastScanTime < SAME_BARCODE_COOLDOWN_MS) {
                 // Still in cooldown period, ignore this scan
@@ -338,17 +338,16 @@ class CheckoutScannerActivity : AppCompatActivity() {
             }
         }
 
-        // Different barcode - find item by SKU
-        val item = itemManager.findItemBySku(sku)
+        // Different barcode - find item by Gtin
+        val item = itemManager.findItemByGtin(gtin)
         if (item == null) {
             runOnUiThread {
-                Toast.makeText(this, "Item not found: $sku", Toast.LENGTH_SHORT).show()
                 previewView.performHapticFeedback(android.view.HapticFeedbackConstants.REJECT)
             }
             return
         }
 
-        lastScannedSku = sku
+        lastScannedGtin = gtin
         lastScanTime = currentTime
         currentItem = item
 
