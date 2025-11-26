@@ -410,23 +410,33 @@
 
                     </LinearLayout>
 
-                    <!-- Continue Button -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/seed_continue_button"
-                        android:layout_width="match_parent"
-                        android:layout_height="56dp"
-                        android:layout_marginTop="24dp"
-                        android:text="Continue"
-                        android:textSize="17sp"
-                        android:textColor="#FFFFFF"
-                        android:textAllCaps="false"
-                        android:enabled="false"
-                        android:alpha="0.5"
-                        app:cornerRadius="28dp"
-                        app:backgroundTint="#000000" />
-
                 </LinearLayout>
             </ScrollView>
+
+            <!-- Continue Button - Fixed at bottom -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="20dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="32dp"
+                android:background="@color/color_bg_light">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/seed_continue_button"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:text="Continue"
+                    android:textSize="17sp"
+                    android:textColor="#FFFFFF"
+                    android:textAllCaps="false"
+                    android:enabled="false"
+                    android:alpha="0.5"
+                    app:cornerRadius="28dp"
+                    app:backgroundTint="#000000" />
+
+            </LinearLayout>
         </LinearLayout>
     </FrameLayout>
 
@@ -664,24 +674,31 @@
                         android:textSize="13sp"
                         android:textColor="@color/color_text_tertiary" />
 
-                    <Space
-                        android:layout_width="match_parent"
-                        android:layout_height="24dp" />
-
-                    <!-- Continue Button -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/mints_continue_button"
-                        android:layout_width="match_parent"
-                        android:layout_height="56dp"
-                        android:text="Continue"
-                        android:textSize="17sp"
-                        android:textColor="#FFFFFF"
-                        android:textAllCaps="false"
-                        app:cornerRadius="28dp"
-                        app:backgroundTint="#000000" />
-
                 </LinearLayout>
             </ScrollView>
+
+            <!-- Continue Button - Fixed at bottom -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="20dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="32dp"
+                android:background="@color/color_bg_light">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/mints_continue_button"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:text="Continue"
+                    android:textSize="17sp"
+                    android:textColor="#FFFFFF"
+                    android:textAllCaps="false"
+                    app:cornerRadius="28dp"
+                    app:backgroundTint="#000000" />
+
+            </LinearLayout>
         </LinearLayout>
     </FrameLayout>
 
