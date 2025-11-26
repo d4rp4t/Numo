@@ -70,16 +70,31 @@
         android:id="@+id/converted_amount_display"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="4dp"
         android:text=""
         android:textColor="@color/color_text_secondary"
         android:textSize="16sp"
         android:textStyle="normal"
         android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/qr_card"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/large_amount_display" />
+
+    <!-- Tip Info Text (shown when tip was added) -->
+    <TextView
+        android:id="@+id/tip_info_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:text="includes ₿100 tip (15%)"
+        android:textColor="@color/color_success_green"
+        android:textSize="14sp"
+        android:textStyle="normal"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/qr_card"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/converted_amount_display" />
 
     <!-- QR Code Card -->
     <FrameLayout
@@ -91,7 +106,7 @@
         app:layout_constraintDimensionRatio="1:1"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/converted_amount_display"
+        app:layout_constraintTop_toBottomOf="@id/tip_info_text"
         app:layout_constraintBottom_toTopOf="@id/icons_container"
         app:layout_constraintVertical_chainStyle="packed"
         app:layout_constraintVertical_bias="0.5">
@@ -201,46 +216,19 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Tip Display (shows when tip is added) -->
-    <TextView
-        android:id="@+id/tip_display_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="+ ₿100 tip"
-        android:textColor="@color/color_success_green"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/icons_container" />
-
-    <!-- Tip Selection Container -->
-    <com.electricdreams.shellshock.feature.tips.TipSelectionView
-        android:id="@+id/tip_selection_view"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="12dp"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tip_display_text" />
-
     <!-- Status Text (Hidden) -->
     <TextView
         android:id="@+id/payment_status_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="8dp"
         android:text="Waiting for payment..."
         android:textColor="@color/color_text_secondary"
         android:textSize="14sp"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tip_selection_view" />
+        app:layout_constraintTop_toBottomOf="@id/icons_container" />
 
     <!-- Lightning / Cashu Switcher (tabs-style) now at the bottom -->
     <LinearLayout

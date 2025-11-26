@@ -19,8 +19,7 @@ import com.electricdreams.shellshock.core.util.MintManager
 import com.electricdreams.shellshock.core.worker.BitcoinPriceWorker
 import com.electricdreams.shellshock.core.util.CurrencyManager
 import com.electricdreams.shellshock.feature.history.PaymentsHistoryActivity
-import com.electricdreams.shellshock.feature.tips.TipsManager
-import com.electricdreams.shellshock.feature.tips.TipSelectionView
+import com.electricdreams.shellshock.feature.tips.TipSelectionActivity
 import com.electricdreams.shellshock.ndef.CashuPaymentHelper
 import com.electricdreams.shellshock.ndef.NdefHostCardEmulationService
 import com.electricdreams.shellshock.payment.LightningMintHandler
@@ -48,21 +47,18 @@ class PaymentRequestActivity : AppCompatActivity() {
     private lateinit var lightningLogoCard: View
     
     // Tip-related views
-    private lateinit var tipSelectionView: TipSelectionView
-    private lateinit var tipDisplayText: TextView
+    private lateinit var tipInfoText: TextView
 
     private var paymentAmount: Long = 0
     private var bitcoinPriceWorker: BitcoinPriceWorker? = null
     private var hcePaymentRequest: String? = null
     private var formattedAmountString: String = ""
     
-    // Tip state
-    private var baseAmountSats: Long = 0  // Original amount before tip
-    private var currentTipSats: Long = 0
-    private var currentTipPercentage: Int = 0
-    private var tipsManager: TipsManager? = null
-    private var entryCurrency: Currency = Currency.BTC
-    private var enteredAmountFiat: Long = 0  // Original fiat amount in cents
+    // Tip state (received from TipSelectionActivity)
+    private var tipAmountSats: Long = 0
+    private var tipPercentage: Int = 0
+    private var baseAmountSats: Long = 0
+    private var baseFormattedAmount: String = ""
 
     // Tab manager for Cashu/Lightning tab switching
     private lateinit var tabManager: PaymentTabManager
@@ -638,160 +634,52 @@ class PaymentRequestActivity : AppCompatActivity() {
     }
 
     /**
-     * Set up the tip selection view if tips are enabled.
+     * Set up tip display if tip was added via TipSelectionActivity.
+     * The tip amount is already included in paymentAmount - we just show the info.
      */
     private fun setupTipSelection() {
-        tipsManager = TipsManager.getInstance(this)
-        tipSelectionView = findViewById(R.id.tip_selection_view)
-        tipDisplayText = findViewById(R.id.tip_display_text)
+        tipInfoText = findViewById(R.id.tip_info_text)
         
-        // Store original amount as base amount
-        baseAmountSats = paymentAmount
+        // Get tip info from intent (passed from TipSelectionActivity)
+        tipAmountSats = intent.getLongExtra(TipSelectionActivity.EXTRA_TIP_AMOUNT_SATS, 0)
+        tipPercentage = intent.getIntExtra(TipSelectionActivity.EXTRA_TIP_PERCENTAGE, 0)
+        baseAmountSats = intent.getLongExtra(TipSelectionActivity.EXTRA_BASE_AMOUNT_SATS, 0)
+        baseFormattedAmount = intent.getStringExtra(TipSelectionActivity.EXTRA_BASE_FORMATTED_AMOUNT) ?: ""
         
-        // Parse entry currency from formatted amount
-        val parsedAmount = Amount.parse(formattedAmountString)
-        if (parsedAmount != null) {
-            entryCurrency = parsedAmount.currency
-            if (entryCurrency != Currency.BTC) {
-                enteredAmountFiat = parsedAmount.value
+        // If we have tip info, show it below the converted amount
+        if (tipAmountSats > 0) {
+            val tipAmount = Amount(tipAmountSats, Currency.BTC)
+            val tipText = if (tipPercentage > 0) {
+                "includes $tipAmount tip ($tipPercentage%)"
+            } else {
+                "includes $tipAmount tip"
             }
-        }
-        
-        // Only show tips if enabled and not resuming a payment
-        if (tipsManager?.tipsEnabled == true && !isResumingPayment) {
-            val presets = tipsManager?.getTipPresets() ?: listOf(5, 10, 15, 20)
-            val btcPrice = bitcoinPriceWorker?.getCurrentPrice() ?: 0.0
+            tipInfoText.text = tipText
+            tipInfoText.visibility = View.VISIBLE
             
-            tipSelectionView.configure(
-                baseAmountSats = baseAmountSats,
-                baseCurrency = entryCurrency,
-                baseAmountFiat = enteredAmountFiat,
-                bitcoinPrice = btcPrice,
-                presets = presets
-            )
+            Log.d(TAG, "Displaying tip info: $tipAmountSats sats ($tipPercentage%)")
             
-            tipSelectionView.setListener(object : TipSelectionView.TipSelectionListener {
-                override fun onTipSelected(tipAmountSats: Long, tipPercentage: Int) {
-                    currentTipSats = tipAmountSats
-                    currentTipPercentage = tipPercentage
-                    applyTipToPayment()
-                }
-                
-                override fun onTipCleared() {
-                    currentTipSats = 0
-                    currentTipPercentage = 0
-                    clearTipFromPayment()
-                }
-            })
-            
-            tipSelectionView.visibility = View.VISIBLE
-            Log.d(TAG, "Tips enabled with presets: $presets")
+            // Update pending payment with tip info after it's created
+            pendingPaymentId?.let { updatePendingPaymentWithTip() }
         } else {
-            tipSelectionView.visibility = View.GONE
-            Log.d(TAG, "Tips disabled or resuming payment")
+            tipInfoText.visibility = View.GONE
         }
     }
     
     /**
-     * Apply the selected tip to the payment amount and regenerate payment requests.
-     */
-    private fun applyTipToPayment() {
-        // Calculate new total
-        val newTotalSats = baseAmountSats + currentTipSats
-        paymentAmount = newTotalSats
-        
-        // Show tip display
-        val tipAmount = Amount(currentTipSats, Currency.BTC)
-        val displayText = if (currentTipPercentage > 0) {
-            "+ $tipAmount tip ($currentTipPercentage%)"
-        } else {
-            "+ $tipAmount tip"
-        }
-        tipDisplayText.text = displayText
-        tipDisplayText.visibility = View.VISIBLE
-        
-        Log.d(TAG, "Applied tip: $currentTipSats sats ($currentTipPercentage%), new total: $newTotalSats sats")
-        
-        // Regenerate payment requests with new amount
-        regeneratePaymentRequests()
-        
-        // Update pending payment with tip info
-        updatePendingPaymentWithTip()
-    }
-    
-    /**
-     * Clear the tip and restore original payment amount.
-     */
-    private fun clearTipFromPayment() {
-        paymentAmount = baseAmountSats
-        tipDisplayText.visibility = View.GONE
-        
-        Log.d(TAG, "Cleared tip, restored amount: $baseAmountSats sats")
-        
-        // Regenerate payment requests with original amount
-        regeneratePaymentRequests()
-        
-        // Update pending payment to remove tip
-        updatePendingPaymentWithTip()
-    }
-    
-    /**
-     * Regenerate all payment requests (Cashu/Nostr and Lightning) with the current amount.
-     */
-    private fun regeneratePaymentRequests() {
-        val mintManager = MintManager.getInstance(this)
-        val allowedMints = mintManager.getAllowedMints()
-        
-        // Update HCE payment request
-        val ndefAvailable = NdefHostCardEmulationService.isHceAvailable(this)
-        if (ndefAvailable) {
-            hcePaymentRequest = CashuPaymentHelper.createPaymentRequest(
-                paymentAmount,
-                "Payment of $paymentAmount sats",
-                allowedMints
-            )
-            
-            val hceService = NdefHostCardEmulationService.getInstance()
-            hceService?.setPaymentRequest(hcePaymentRequest ?: "", paymentAmount)
-        }
-        
-        // Stop existing handlers
-        nostrHandler?.stop()
-        lightningHandler?.cancel()
-        
-        // Reset Lightning started flag to regenerate when tab is selected
-        lightningStarted = false
-        lightningInvoice = null
-        lightningQuoteId = null
-        lightningMintUrl = null
-        
-        // Show loading state for Lightning
-        lightningLoadingSpinner.visibility = View.VISIBLE
-        lightningLogoCard.visibility = View.GONE
-        lightningQrImageView.setImageBitmap(null)
-        
-        // Reinitialize Nostr handler with new amount
-        nostrHandler = NostrPaymentHandler(this, allowedMints)
-        startNostrPaymentFlow()
-        
-        // If Lightning tab is currently selected, restart Lightning flow
-        if (tabManager.isLightningTabSelected()) {
-            startLightningMintFlow()
-        }
-    }
-    
-    /**
-     * Update the pending payment entry with current tip information.
+     * Update the pending payment entry with tip information.
      */
     private fun updatePendingPaymentWithTip() {
-        pendingPaymentId?.let { paymentId ->
-            PaymentsHistoryActivity.updatePendingWithTipInfo(
-                context = this,
-                paymentId = paymentId,
-                tipAmountSats = currentTipSats,
-                tipPercentage = currentTipPercentage,
-                newTotalAmount = paymentAmount
-            )
+        if (tipAmountSats > 0) {
+            pendingPaymentId?.let { paymentId ->
+                PaymentsHistoryActivity.updatePendingWithTipInfo(
+                    context = this,
+                    paymentId = paymentId,
+                    tipAmountSats = tipAmountSats,
+                    tipPercentage = tipPercentage,
+                    newTotalAmount = paymentAmount
+                )
+            }
         }
     }
 
