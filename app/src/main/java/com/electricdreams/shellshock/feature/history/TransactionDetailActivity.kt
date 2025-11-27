@@ -113,7 +113,7 @@ class TransactionDetailActivity : AppCompatActivity() {
             }
         }
 
-        // Amount display - show primary and secondary amounts based on basket type
+        // Amount display - show BASE amount (excluding tip) for proper accounting
         val amountText: TextView = findViewById(R.id.detail_amount)
         val amountSubtitleText: TextView = findViewById(R.id.detail_amount_subtitle)
         val amountValueText: TextView = findViewById(R.id.detail_amount_value)
@@ -124,12 +124,14 @@ class TransactionDetailActivity : AppCompatActivity() {
             it.hasMixedPriceTypes() || it.getFiatItems().isEmpty() 
         } ?: (entry.getEntryUnit() == "sat")
         
-        val satAmount = Amount(entry.amount, Amount.Currency.BTC)
+        // Use BASE amount (excluding tip) for display - this is what was sold
+        val baseAmountSats = entry.getBaseAmountSats()
+        val baseSatAmount = Amount(baseAmountSats, Amount.Currency.BTC)
         
         if (showSatsAsPrimary) {
-            // Primary: Sats
-            amountText.text = satAmount.toString()
-            amountValueText.text = satAmount.toString()
+            // Primary: Sats (base amount)
+            amountText.text = baseSatAmount.toString()
+            amountValueText.text = baseSatAmount.toString()
             
             // Secondary: Fiat equivalent
             if (entry.enteredAmount > 0 && entry.getEntryUnit() != "sat") {
@@ -141,14 +143,14 @@ class TransactionDetailActivity : AppCompatActivity() {
                 amountSubtitleText.visibility = View.GONE
             }
         } else {
-            // Primary: Fiat
+            // Primary: Fiat (entered amount - which is the base amount)
             val entryCurrency = Amount.Currency.fromCode(entry.getEntryUnit())
             val fiatAmount = Amount(entry.enteredAmount, entryCurrency)
             amountText.text = fiatAmount.toString()
             amountValueText.text = fiatAmount.toString()
             
-            // Secondary: Sats paid
-            amountSubtitleText.text = satAmount.toString()
+            // Secondary: Sats paid (base amount, not total)
+            amountSubtitleText.text = baseSatAmount.toString()
             amountSubtitleText.visibility = View.VISIBLE
         }
 
@@ -227,6 +229,48 @@ class TransactionDetailActivity : AppCompatActivity() {
         } else {
             bitcoinPriceRow.visibility = View.GONE
             bitcoinPriceDivider.visibility = View.GONE
+        }
+
+        // Tip Row (shown only if tip was added)
+        val tipRow: View = findViewById(R.id.tip_row)
+        val tipLabel: TextView = findViewById(R.id.tip_label)
+        val tipAmountText: TextView = findViewById(R.id.detail_tip_amount)
+        val tipFiatRow: View = findViewById(R.id.tip_fiat_row)
+        val tipFiatText: TextView = findViewById(R.id.detail_tip_fiat)
+        val tipDivider: View = findViewById(R.id.tip_divider)
+        val totalPaidRow: View = findViewById(R.id.total_paid_row)
+        val totalPaidText: TextView = findViewById(R.id.detail_total_paid)
+        val totalPaidDivider: View = findViewById(R.id.total_paid_divider)
+
+        if (tipAmountSats > 0) {
+            // Show tip row with label including percentage if applicable
+            tipLabel.text = if (tipPercentage > 0) "Tip ($tipPercentage%)" else "Tip"
+            tipAmountText.text = Amount(tipAmountSats, Amount.Currency.BTC).toString()
+            tipRow.visibility = View.VISIBLE
+            tipDivider.visibility = View.VISIBLE
+
+            // Show fiat equivalent if we have bitcoin price
+            if (btcPrice != null && btcPrice > 0) {
+                val tipFiatValue = (tipAmountSats.toDouble() / 100_000_000.0) * btcPrice * 100 // cents
+                val entryCurrency = Amount.Currency.fromCode(entry.getEntryUnit())
+                val tipFiatAmount = Amount(tipFiatValue.toLong(), entryCurrency)
+                tipFiatText.text = "≈ $tipFiatAmount"
+                tipFiatRow.visibility = View.VISIBLE
+            } else {
+                tipFiatRow.visibility = View.GONE
+            }
+
+            // Show total paid (base + tip)
+            val totalAmount = Amount(entry.amount, Amount.Currency.BTC)
+            totalPaidText.text = totalAmount.toString()
+            totalPaidRow.visibility = View.VISIBLE
+            totalPaidDivider.visibility = View.VISIBLE
+        } else {
+            tipRow.visibility = View.GONE
+            tipFiatRow.visibility = View.GONE
+            tipDivider.visibility = View.GONE
+            totalPaidRow.visibility = View.GONE
+            totalPaidDivider.visibility = View.GONE
         }
 
         // Lightning Invoice section

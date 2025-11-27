@@ -212,30 +212,32 @@ class BasketReceiptActivity : AppCompatActivity() {
             ?: Amount.Currency.fromCode(enteredCurrency)
         
         val showSatsAsPrimary = shouldShowSatsAsPrimary()
-        val sats = b?.totalSatoshis ?: totalSatoshis
-        val totalFiat = getTotalFiatIncludingSatsConversion()
+        
+        // Use BASE amounts (excluding tip) for the hero section - this is what was sold
+        val baseSats = (b?.totalSatoshis ?: totalSatoshis) - tipAmountSats
+        val baseFiat = getTotalFiatIncludingSatsConversion() // enteredAmount is already base amount
         
         if (showSatsAsPrimary) {
-            // Primary: Sats amount
-            val satsAmount = Amount(sats, Amount.Currency.BTC)
+            // Primary: Sats amount (base, not including tip)
+            val satsAmount = Amount(baseSats, Amount.Currency.BTC)
             totalAmountText.text = satsAmount.toString()
             
             // Secondary: Fiat equivalent
-            if (totalFiat > 0) {
-                val fiatEquiv = Amount(totalFiat, currency)
+            if (baseFiat > 0) {
+                val fiatEquiv = Amount(baseFiat, currency)
                 totalSubtitleText.text = "≈ $fiatEquiv"
                 totalSubtitleText.visibility = View.VISIBLE
             } else {
                 totalSubtitleText.visibility = View.GONE
             }
         } else {
-            // Primary: Fiat amount
-            val fiatAmount = Amount(totalFiat, currency)
+            // Primary: Fiat amount (entered amount is already base amount)
+            val fiatAmount = Amount(baseFiat, currency)
             totalAmountText.text = fiatAmount.toString()
             
-            // Secondary: Sats paid
-            if (sats > 0) {
-                val satsAmount = Amount(sats, Amount.Currency.BTC)
+            // Secondary: Sats paid (base amount)
+            if (baseSats > 0) {
+                val satsAmount = Amount(baseSats, Amount.Currency.BTC)
                 totalSubtitleText.text = satsAmount.toString()
                 totalSubtitleText.setTextColor(resources.getColor(R.color.color_text_tertiary, theme))
                 totalSubtitleText.visibility = View.VISIBLE
@@ -403,8 +405,11 @@ class BasketReceiptActivity : AppCompatActivity() {
             ?: Amount.Currency.fromCode(enteredCurrency)
         
         val showSatsAsPrimary = shouldShowSatsAsPrimary()
-        val sats = b?.totalSatoshis ?: totalSatoshis
-        val totalFiat = getTotalFiatIncludingSatsConversion()
+        
+        // Use BASE amounts (excluding tip) for totals - tip is shown separately below
+        val fullSats = b?.totalSatoshis ?: totalSatoshis
+        val baseSats = fullSats - tipAmountSats
+        val baseFiat = getTotalFiatIncludingSatsConversion() // enteredAmount is already base amount
 
         if (b != null) {
             val hasVat = b.hasVat()
@@ -457,33 +462,71 @@ class BasketReceiptActivity : AppCompatActivity() {
             satsItemsRow.visibility = View.GONE
         }
 
-        // Show tip as separate line item if present
-        if (tipAmountSats > 0) {
-            addTipRow(currency)
-        }
-
-        // Final total - with proper primary/secondary display
+        // Final total (BASE amount, excluding tip) - this is for accounting
         if (showSatsAsPrimary) {
             finalTotalLabel.text = "Total"
-            finalTotalValue.text = Amount(sats, Amount.Currency.BTC).toString()
+            finalTotalValue.text = Amount(baseSats, Amount.Currency.BTC).toString()
             
-            if (totalFiat > 0) {
-                satsEquivalentText.text = "≈ ${Amount(totalFiat, currency)}"
+            if (baseFiat > 0) {
+                satsEquivalentText.text = "≈ ${Amount(baseFiat, currency)}"
                 satsEquivalentText.visibility = View.VISIBLE
             } else {
                 satsEquivalentText.visibility = View.GONE
             }
         } else {
             finalTotalLabel.text = "Total"
-            finalTotalValue.text = Amount(totalFiat, currency).toString()
+            finalTotalValue.text = Amount(baseFiat, currency).toString()
             
-            if (sats > 0) {
-                satsEquivalentText.text = Amount(sats, Amount.Currency.BTC).toString()
+            if (baseSats > 0) {
+                satsEquivalentText.text = Amount(baseSats, Amount.Currency.BTC).toString()
                 satsEquivalentText.visibility = View.VISIBLE
             } else {
                 satsEquivalentText.visibility = View.GONE
             }
         }
+
+        // Show tip as separate line AFTER total - it doesn't add to the Total for accounting
+        if (tipAmountSats > 0) {
+            addTipRow(currency)
+            
+            // Also add a "Total Paid" line showing the full amount with tip
+            addTotalPaidRow(currency, fullSats)
+        }
+    }
+    
+    private fun addTotalPaidRow(currency: Amount.Currency, totalSats: Long) {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = (12 * resources.displayMetrics.density).toInt()
+            }
+        }
+
+        val label = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            text = "Total Paid"
+            textSize = 15f
+            setTextColor(resources.getColor(R.color.color_text_primary, theme))
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+        }
+
+        val value = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            text = Amount(totalSats, Amount.Currency.BTC).toString()
+            textSize = 15f
+            setTextColor(resources.getColor(R.color.color_text_primary, theme))
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+        }
+
+        row.addView(label)
+        row.addView(value)
+        vatBreakdownContainer.addView(row)
     }
 
     private fun addTipRow(currency: Amount.Currency) {

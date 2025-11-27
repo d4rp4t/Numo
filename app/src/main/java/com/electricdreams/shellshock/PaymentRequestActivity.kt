@@ -176,8 +176,9 @@ class PaymentRequestActivity : AppCompatActivity() {
         // Calculate and display converted amount
         updateConvertedAmount(formattedAmountString)
 
-        // Initialize tip selection
-        setupTipSelection()
+        // Read tip info from intent BEFORE creating pending payment
+        // This must happen before createPendingPayment() so tip data is included
+        readTipInfoFromIntent()
 
         // Set up buttons
         closeButton.setOnClickListener {
@@ -196,9 +197,13 @@ class PaymentRequestActivity : AppCompatActivity() {
         }
 
         // Create pending payment entry if this is a new payment (not resuming)
+        // This now includes tip info since readTipInfoFromIntent() was called first
         if (!isResumingPayment) {
             createPendingPayment()
         }
+        
+        // Set up tip display UI (after pending payment is created)
+        setupTipDisplay()
 
         // Initialize all payment modes (NDEF, Nostr, Lightning)
         initializePaymentRequest()
@@ -209,21 +214,52 @@ class PaymentRequestActivity : AppCompatActivity() {
         }
     }
 
-    private fun createPendingPayment() {
-        // Parse the formatted amount string to extract the exact entered amount
-        // This avoids precision loss from sats→fiat→sats round-trip conversion
-        val parsedAmount = Amount.parse(formattedAmountString)
+    /**
+     * Read tip info from intent extras.
+     * Called BEFORE createPendingPayment() so tip data is available.
+     */
+    private fun readTipInfoFromIntent() {
+        tipAmountSats = intent.getLongExtra(TipSelectionActivity.EXTRA_TIP_AMOUNT_SATS, 0)
+        tipPercentage = intent.getIntExtra(TipSelectionActivity.EXTRA_TIP_PERCENTAGE, 0)
+        baseAmountSats = intent.getLongExtra(TipSelectionActivity.EXTRA_BASE_AMOUNT_SATS, 0)
+        baseFormattedAmount = intent.getStringExtra(TipSelectionActivity.EXTRA_BASE_FORMATTED_AMOUNT) ?: ""
         
+        if (tipAmountSats > 0) {
+            Log.d(TAG, "Read tip info from intent: tipAmount=$tipAmountSats, tipPercent=$tipPercentage%, baseAmount=$baseAmountSats")
+        }
+    }
+
+    private fun createPendingPayment() {
+        // Determine the entry unit and entered amount
+        // If tip is present, use the BASE amount (what was originally entered)
+        // If no tip, parse from formattedAmountString
         val entryUnit: String
         val enteredAmount: Long
         
-        if (parsedAmount != null) {
-            entryUnit = if (parsedAmount.currency == Currency.BTC) "sat" else parsedAmount.currency.name
-            enteredAmount = parsedAmount.value
+        if (tipAmountSats > 0 && baseAmountSats > 0) {
+            // Tip is present - use base amounts for accounting
+            // Parse base formatted amount to get the original entry unit
+            val parsedBase = Amount.parse(baseFormattedAmount)
+            if (parsedBase != null) {
+                entryUnit = if (parsedBase.currency == Currency.BTC) "sat" else parsedBase.currency.name
+                enteredAmount = parsedBase.value
+            } else {
+                // Fallback: use sats for base amount
+                entryUnit = "sat"
+                enteredAmount = baseAmountSats
+            }
+            Log.d(TAG, "Creating pending payment with tip: base=$enteredAmount $entryUnit, tip=$tipAmountSats sats, total=$paymentAmount sats")
         } else {
-            // Fallback if parsing fails (shouldn't happen with valid formatted amounts)
-            entryUnit = "sat"
-            enteredAmount = paymentAmount
+            // No tip - parse the formatted amount string
+            val parsedAmount = Amount.parse(formattedAmountString)
+            if (parsedAmount != null) {
+                entryUnit = if (parsedAmount.currency == Currency.BTC) "sat" else parsedAmount.currency.name
+                enteredAmount = parsedAmount.value
+            } else {
+                // Fallback if parsing fails (shouldn't happen with valid formatted amounts)
+                entryUnit = "sat"
+                enteredAmount = paymentAmount
+            }
         }
 
         val bitcoinPrice = bitcoinPriceWorker?.getCurrentPrice()?.takeIf { it > 0 }
@@ -237,9 +273,11 @@ class PaymentRequestActivity : AppCompatActivity() {
             paymentRequest = null, // Will be set after payment request is created
             formattedAmount = formattedAmountString,
             checkoutBasketJson = checkoutBasketJson,
+            tipAmountSats = tipAmountSats,
+            tipPercentage = tipPercentage,
         )
 
-        Log.d(TAG, "Created pending payment with id=$pendingPaymentId, hasBasket=${checkoutBasketJson != null}")
+        Log.d(TAG, "Created pending payment with id=$pendingPaymentId, hasBasket=${checkoutBasketJson != null}, hasTip=${tipAmountSats > 0}")
     }
 
     private fun updateConvertedAmount(formattedAmountString: String) {
@@ -634,17 +672,12 @@ class PaymentRequestActivity : AppCompatActivity() {
     }
 
     /**
-     * Set up tip display if tip was added via TipSelectionActivity.
-     * The tip amount is already included in paymentAmount - we just show the info.
+     * Set up tip display UI.
+     * Tip info was already read from intent in readTipInfoFromIntent().
+     * This just sets up the visual display.
      */
-    private fun setupTipSelection() {
+    private fun setupTipDisplay() {
         tipInfoText = findViewById(R.id.tip_info_text)
-        
-        // Get tip info from intent (passed from TipSelectionActivity)
-        tipAmountSats = intent.getLongExtra(TipSelectionActivity.EXTRA_TIP_AMOUNT_SATS, 0)
-        tipPercentage = intent.getIntExtra(TipSelectionActivity.EXTRA_TIP_PERCENTAGE, 0)
-        baseAmountSats = intent.getLongExtra(TipSelectionActivity.EXTRA_BASE_AMOUNT_SATS, 0)
-        baseFormattedAmount = intent.getStringExtra(TipSelectionActivity.EXTRA_BASE_FORMATTED_AMOUNT) ?: ""
         
         // If we have tip info, show it below the converted amount
         if (tipAmountSats > 0) {
@@ -658,28 +691,8 @@ class PaymentRequestActivity : AppCompatActivity() {
             tipInfoText.visibility = View.VISIBLE
             
             Log.d(TAG, "Displaying tip info: $tipAmountSats sats ($tipPercentage%)")
-            
-            // Update pending payment with tip info after it's created
-            pendingPaymentId?.let { updatePendingPaymentWithTip() }
         } else {
             tipInfoText.visibility = View.GONE
-        }
-    }
-    
-    /**
-     * Update the pending payment entry with tip information.
-     */
-    private fun updatePendingPaymentWithTip() {
-        if (tipAmountSats > 0) {
-            pendingPaymentId?.let { paymentId ->
-                PaymentsHistoryActivity.updatePendingWithTipInfo(
-                    context = this,
-                    paymentId = paymentId,
-                    tipAmountSats = tipAmountSats,
-                    tipPercentage = tipPercentage,
-                    newTotalAmount = paymentAmount
-                )
-            }
         }
     }
 

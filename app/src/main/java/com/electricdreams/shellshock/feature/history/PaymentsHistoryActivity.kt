@@ -236,6 +236,8 @@ class PaymentsHistoryActivity : AppCompatActivity() {
             paymentRequest: String?,
             formattedAmount: String?,
             checkoutBasketJson: String? = null,
+            tipAmountSats: Long = 0,
+            tipPercentage: Int = 0,
         ): String {
             val entry = PaymentHistoryEntry.createPending(
                 amount = amount,
@@ -245,6 +247,8 @@ class PaymentsHistoryActivity : AppCompatActivity() {
                 paymentRequest = paymentRequest,
                 formattedAmount = formattedAmount,
                 checkoutBasketJson = checkoutBasketJson,
+                tipAmountSats = tipAmountSats,
+                tipPercentage = tipPercentage,
             )
 
             val history = getPaymentHistory(context).toMutableList()
