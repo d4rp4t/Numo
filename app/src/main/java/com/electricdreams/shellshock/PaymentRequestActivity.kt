@@ -277,7 +277,12 @@ class PaymentRequestActivity : AppCompatActivity() {
             tipPercentage = tipPercentage,
         )
 
-        Log.d(TAG, "Created pending payment with id=$pendingPaymentId, hasBasket=${checkoutBasketJson != null}, hasTip=${tipAmountSats > 0}")
+        Log.d(TAG, "✅ CREATED PENDING PAYMENT: id=$pendingPaymentId")
+        Log.d(TAG, "   💰 Total amount: $paymentAmount sats")
+        Log.d(TAG, "   📊 Base amount: $enteredAmount $entryUnit")  
+        Log.d(TAG, "   💸 Tip: $tipAmountSats sats ($tipPercentage%)")
+        Log.d(TAG, "   🛒 Has basket: ${checkoutBasketJson != null}")
+        Log.d(TAG, "   📱 Formatted: $formattedAmountString")
     }
 
     private fun updateConvertedAmount(formattedAmountString: String) {

@@ -76,6 +76,14 @@ class TransactionDetailActivity : AppCompatActivity() {
             tipPercentage = tipPercentage,
         )
 
+        // DEBUG: Log received tip info
+        android.util.Log.d("TransactionDetailActivity", "🧾 TRANSACTION DETAIL DEBUG:")
+        android.util.Log.d("TransactionDetailActivity", "   💰 Total amount: $amount sats")
+        android.util.Log.d("TransactionDetailActivity", "   📊 Entered amount: $enteredAmount ${entryUnit ?: "null"}")
+        android.util.Log.d("TransactionDetailActivity", "   💸 Tip from intent: $tipAmountSats sats ($tipPercentage%)")
+        android.util.Log.d("TransactionDetailActivity", "   💸 Tip from entry: ${entry.tipAmountSats} sats (${entry.tipPercentage}%)")
+        android.util.Log.d("TransactionDetailActivity", "   🧮 Calculated base: ${entry.getBaseAmountSats()} sats")
+
         setupViews()
     }
 
@@ -242,16 +250,17 @@ class TransactionDetailActivity : AppCompatActivity() {
         val totalPaidText: TextView = findViewById(R.id.detail_total_paid)
         val totalPaidDivider: View = findViewById(R.id.total_paid_divider)
 
-        if (tipAmountSats > 0) {
+        // FIXED: Use entry.tipAmountSats (from stored data) not local tipAmountSats (from intent)
+        if (entry.tipAmountSats > 0) {
             // Show tip row with label including percentage if applicable
-            tipLabel.text = if (tipPercentage > 0) "Tip ($tipPercentage%)" else "Tip"
-            tipAmountText.text = Amount(tipAmountSats, Amount.Currency.BTC).toString()
+            tipLabel.text = if (entry.tipPercentage > 0) "Added tip (${entry.tipPercentage}%)" else "Added tip"
+            tipAmountText.text = Amount(entry.tipAmountSats, Amount.Currency.BTC).toString()
             tipRow.visibility = View.VISIBLE
             tipDivider.visibility = View.VISIBLE
 
             // Show fiat equivalent if we have bitcoin price
             if (btcPrice != null && btcPrice > 0) {
-                val tipFiatValue = (tipAmountSats.toDouble() / 100_000_000.0) * btcPrice * 100 // cents
+                val tipFiatValue = (entry.tipAmountSats.toDouble() / 100_000_000.0) * btcPrice * 100 // cents
                 val entryCurrency = Amount.Currency.fromCode(entry.getEntryUnit())
                 val tipFiatAmount = Amount(tipFiatValue.toLong(), entryCurrency)
                 tipFiatText.text = "≈ $tipFiatAmount"

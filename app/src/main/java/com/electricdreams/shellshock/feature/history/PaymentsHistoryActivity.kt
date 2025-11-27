@@ -343,6 +343,8 @@ class PaymentsHistoryActivity : AppCompatActivity() {
                     nostrNprofile = existing.nostrNprofile,
                     nostrSecretHex = existing.nostrSecretHex,
                     checkoutBasketJson = existing.checkoutBasketJson, // Preserve basket data
+                    tipAmountSats = existing.tipAmountSats, // Preserve tip info
+                    tipPercentage = existing.tipPercentage, // Preserve tip info
                 )
                 history[index] = updated
 
@@ -386,6 +388,8 @@ class PaymentsHistoryActivity : AppCompatActivity() {
                     nostrNprofile = nostrNprofile,
                     nostrSecretHex = nostrSecretHex,
                     checkoutBasketJson = existing.checkoutBasketJson, // Preserve basket data
+                    tipAmountSats = existing.tipAmountSats, // Preserve tip info
+                    tipPercentage = existing.tipPercentage, // Preserve tip info
                 )
                 history[index] = updated
 

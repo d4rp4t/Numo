@@ -149,6 +149,8 @@ class BasketReceiptActivity : AppCompatActivity() {
             totalSatoshis = basket?.totalSatoshis ?: totalSatoshis,
             enteredAmount = enteredAmount,
             enteredCurrency = enteredCurrency,
+            tipAmountSats = tipAmountSats,
+            tipPercentage = tipPercentage,
         )
         
         // Print directly - one click printing
