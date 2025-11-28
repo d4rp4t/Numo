@@ -142,21 +142,21 @@ class BasketArchiveActivity : AppCompatActivity() {
 }
 
 /**
- * Apple-style dialog to show basket details with beautiful layout.
- * Features hero section with success icon, large total, and items in rounded card.
+ * Google-style dialog to show basket details with clean layout.
+ * Features order summary, items in rounded card, and action button.
  */
 class BasketDetailDialog(
     context: android.content.Context,
     private val basket: SavedBasket,
     private val currencyManager: CurrencyManager,
     private val onPaymentClick: () -> Unit
-) : AlertDialog(context, R.style.Theme_Numo_BottomSheetDialog) {
+) : AlertDialog(context, R.style.Theme_Numo_Dialog) {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.dialog_basket_detail)
 
-        // Make dialog full width with rounded corners
+        // Make dialog centered with rounded corners
         window?.setBackgroundDrawableResource(android.R.color.transparent)
         window?.setLayout(
             android.view.ViewGroup.LayoutParams.MATCH_PARENT,

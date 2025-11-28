@@ -373,28 +373,25 @@ class ItemSelectionActivity : AppCompatActivity() {
     }
     
     private fun showSaveBasketDialog() {
-        val dialog = AlertDialog.Builder(this, R.style.Theme_Numo_BottomSheetDialog)
+        val dialog = AlertDialog.Builder(this, R.style.Theme_Numo_Dialog)
             .setView(R.layout.dialog_save_basket)
             .create()
 
-        // Configure window BEFORE showing
+        // Configure window for centered dialog
         dialog.window?.apply {
             setBackgroundDrawableResource(android.R.color.transparent)
-            // Set layout params before show to prevent jump
             setLayout(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                 android.view.ViewGroup.LayoutParams.WRAP_CONTENT
             )
-            // Position at bottom for bottom sheet feel, adjust for keyboard
-            setGravity(android.view.Gravity.BOTTOM)
-            // Ensure keyboard doesn't cause jarring resize
+            // Ensure keyboard adjusts properly
             setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
 
         dialog.setOnShowListener {
             val editText = dialog.findViewById<EditText>(R.id.basket_name_input)
             val saveButton = dialog.findViewById<View>(R.id.save_button)
-            val cancelButton = dialog.findViewById<View>(R.id.cancel_button)
+            val closeButton = dialog.findViewById<View>(R.id.close_button)
             val presetsContainer = dialog.findViewById<com.google.android.flexbox.FlexboxLayout>(R.id.preset_names_container)
 
             // Setup preset chips
@@ -411,11 +408,11 @@ class ItemSelectionActivity : AppCompatActivity() {
                 finish()
             }
 
-            cancelButton?.setOnClickListener {
+            closeButton?.setOnClickListener {
                 dialog.dismiss()
             }
 
-            // Show keyboard for input - slightly longer delay for smoother appearance
+            // Show keyboard for input
             editText?.requestFocus()
             editText?.postDelayed({
                 val imm = getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager

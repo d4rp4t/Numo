@@ -129,7 +129,7 @@ class BasketNamesSettingsActivity : AppCompatActivity() {
     }
     
     private fun showAddNameDialog() {
-        val dialog = AlertDialog.Builder(this, R.style.Theme_Numo_BottomSheetDialog)
+        val dialog = AlertDialog.Builder(this, R.style.Theme_Numo_Dialog)
             .setView(R.layout.dialog_add_basket_name)
             .create()
 
@@ -139,14 +139,13 @@ class BasketNamesSettingsActivity : AppCompatActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
-            setGravity(android.view.Gravity.BOTTOM)
             setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
 
         dialog.setOnShowListener {
             val editText = dialog.findViewById<EditText>(R.id.name_input)
             val saveButton = dialog.findViewById<View>(R.id.save_button)
-            val cancelButton = dialog.findViewById<View>(R.id.cancel_button)
+            val closeButton = dialog.findViewById<View>(R.id.close_button)
 
             saveButton?.setOnClickListener {
                 val name = editText?.text.toString().trim()
@@ -164,7 +163,7 @@ class BasketNamesSettingsActivity : AppCompatActivity() {
                 }
             }
 
-            cancelButton?.setOnClickListener {
+            closeButton?.setOnClickListener {
                 dialog.dismiss()
             }
 
@@ -180,7 +179,7 @@ class BasketNamesSettingsActivity : AppCompatActivity() {
     }
     
     private fun showEditNameDialog(index: Int, currentName: String) {
-        val dialog = AlertDialog.Builder(this, R.style.Theme_Numo_BottomSheetDialog)
+        val dialog = AlertDialog.Builder(this, R.style.Theme_Numo_Dialog)
             .setView(R.layout.dialog_edit_basket_name)
             .create()
 
@@ -190,14 +189,13 @@ class BasketNamesSettingsActivity : AppCompatActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
-            setGravity(android.view.Gravity.BOTTOM)
             setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
 
         dialog.setOnShowListener {
             val editText = dialog.findViewById<EditText>(R.id.name_input)
             val saveButton = dialog.findViewById<View>(R.id.save_button)
-            val cancelButton = dialog.findViewById<View>(R.id.cancel_button)
+            val closeButton = dialog.findViewById<View>(R.id.close_button)
 
             // Pre-fill
             editText?.setText(currentName)
@@ -216,7 +214,7 @@ class BasketNamesSettingsActivity : AppCompatActivity() {
                 dialog.dismiss()
             }
 
-            cancelButton?.setOnClickListener {
+            closeButton?.setOnClickListener {
                 dialog.dismiss()
             }
 
