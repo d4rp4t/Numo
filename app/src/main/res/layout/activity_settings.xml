@@ -348,9 +348,9 @@
                     app:tint="@color/color_icon_secondary" />
             </LinearLayout>
 
-            <!-- =================== -->
-            <!-- APPEARANCE SECTION -->
-            <!-- =================== -->
+            <!-- =============== -->
+            <!-- GENERAL SECTION -->
+            <!-- =============== -->
 
             <TextView
                 android:layout_width="match_parent"
@@ -358,7 +358,7 @@
                 android:paddingHorizontal="24dp"
                 android:paddingTop="24dp"
                 android:paddingBottom="8dp"
-                android:text="Appearance"
+                android:text="General"
                 android:textSize="13sp"
                 android:textColor="@color/color_text_secondary"
                 android:fontFamily="sans-serif-medium"
@@ -413,23 +413,6 @@
                     android:src="@drawable/ic_chevron_forward"
                     app:tint="@color/color_icon_secondary" />
             </LinearLayout>
-
-            <!-- ============= -->
-            <!-- ABOUT SECTION -->
-            <!-- ============= -->
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="24dp"
-                android:paddingTop="24dp"
-                android:paddingBottom="8dp"
-                android:text="About"
-                android:textSize="13sp"
-                android:textColor="@color/color_text_secondary"
-                android:fontFamily="sans-serif-medium"
-                android:textAllCaps="true"
-                android:letterSpacing="0.05" />
 
             <!-- About -->
             <LinearLayout
