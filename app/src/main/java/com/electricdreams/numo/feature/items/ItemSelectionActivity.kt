@@ -31,6 +31,7 @@ import com.electricdreams.numo.core.util.ItemManager
 import com.electricdreams.numo.core.util.SavedBasketManager
 import com.electricdreams.numo.core.worker.BitcoinPriceWorker
 import com.electricdreams.numo.feature.baskets.SavedBasketsActivity
+import com.electricdreams.numo.feature.baskets.BasketNamesManager
 import com.electricdreams.numo.feature.items.adapters.SelectionBasketAdapter
 import com.electricdreams.numo.feature.items.adapters.SelectionItemsAdapter
 import com.electricdreams.numo.feature.items.handlers.BasketUIHandler
@@ -394,6 +395,10 @@ class ItemSelectionActivity : AppCompatActivity() {
             val editText = dialog.findViewById<EditText>(R.id.basket_name_input)
             val saveButton = dialog.findViewById<View>(R.id.save_button)
             val cancelButton = dialog.findViewById<View>(R.id.cancel_button)
+            val presetsContainer = dialog.findViewById<com.google.android.flexbox.FlexboxLayout>(R.id.preset_names_container)
+
+            // Setup preset chips
+            setupPresetChips(presetsContainer, editText)
 
             saveButton?.setOnClickListener {
                 val name = editText?.text.toString().trim().takeIf { it.isNotEmpty() }
@@ -722,5 +727,54 @@ class ItemSelectionActivity : AppCompatActivity() {
         // Hide keyboard
         val imm = getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
         imm?.hideSoftInputFromWindow(searchInput.windowToken, 0)
+    }
+
+    // ----- Preset Names Chips -----
+
+    /**
+     * Setup preset name chips in the save basket dialog.
+     * When clicked, the preset name fills the input field.
+     */
+    private fun setupPresetChips(
+        container: com.google.android.flexbox.FlexboxLayout?,
+        editText: EditText?
+    ) {
+        if (container == null || editText == null) return
+
+        val basketNamesManager = BasketNamesManager.getInstance(this)
+        val presets = basketNamesManager.getPresetNames()
+
+        if (presets.isEmpty()) {
+            container.visibility = View.GONE
+            return
+        }
+
+        container.removeAllViews()
+        container.visibility = View.VISIBLE
+
+        val inflater = LayoutInflater.from(this)
+        val chipSpacingH = resources.getDimensionPixelSize(R.dimen.space_xs)
+        val chipSpacingV = resources.getDimensionPixelSize(R.dimen.space_xs)
+
+        presets.forEach { name ->
+            val chip = inflater.inflate(R.layout.item_basket_name_chip, container, false) as TextView
+            chip.text = name
+
+            // Add margin between chips
+            val params = com.google.android.flexbox.FlexboxLayout.LayoutParams(
+                com.google.android.flexbox.FlexboxLayout.LayoutParams.WRAP_CONTENT,
+                com.google.android.flexbox.FlexboxLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 0, chipSpacingH, chipSpacingV)
+            }
+            chip.layoutParams = params
+
+            chip.setOnClickListener {
+                editText.setText(name)
+                editText.setSelection(name.length)
+            }
+
+            container.addView(chip)
+        }
     }
 }

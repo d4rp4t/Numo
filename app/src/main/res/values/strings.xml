@@ -588,6 +588,37 @@
     <string name="common_save">Save</string>
     <string name="common_delete">Delete</string>
 
+    <!-- Basket Names Settings -->
+    <string name="basket_names_settings_title">Basket Names</string>
+    <string name="basket_names_settings_description">Create preset names for quick basket saving.\nPerfect for restaurant tables or customer orders.</string>
+    <string name="basket_names_settings_presets_header">PRESET NAMES</string>
+    <string name="basket_names_settings_empty_title">No preset names</string>
+    <string name="basket_names_settings_empty_subtitle">Add names for quick basket saving</string>
+    <string name="basket_names_settings_add_name">Add Name</string>
+    <string name="basket_names_settings_examples">Examples: Table 1, Table 2, VIP, Takeout, John\'s Order</string>
+    <string name="basket_names_settings_clear_all">Clear All Names</string>
+
+    <!-- Basket Names Dialogs -->
+    <string name="basket_names_dialog_add_title">Add Preset Name</string>
+    <string name="basket_names_dialog_add_subtitle">Create a quick-select name for baskets</string>
+    <string name="basket_names_dialog_add_hint">e.g. Table 1</string>
+    <string name="basket_names_dialog_add_save">Add Name</string>
+
+    <string name="basket_names_dialog_edit_title">Edit Name</string>
+    <string name="basket_names_dialog_edit_hint">Enter name</string>
+    <string name="basket_names_dialog_edit_save">Save Changes</string>
+
+    <string name="basket_names_dialog_delete_title">Delete Name</string>
+    <string name="basket_names_dialog_delete_message">Remove \"%1$s\" from presets?</string>
+
+    <string name="basket_names_dialog_clear_all_title">Clear All Names</string>
+    <string name="basket_names_dialog_clear_all_message">Remove all preset names? This cannot be undone.</string>
+    <string name="basket_names_dialog_clear_all_confirm">Clear All</string>
+
+    <!-- Basket Names Errors -->
+    <string name="basket_names_error_empty">Please enter a name</string>
+    <string name="basket_names_error_duplicate">This name already exists</string>
+
     <!-- Plurals -->
     <plurals name="saved_baskets_item_count">
         <item quantity="one">%1$d item</item>
