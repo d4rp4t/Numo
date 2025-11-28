@@ -10,6 +10,7 @@ import com.electricdreams.numo.core.util.CurrencyManager
 
 /**
  * Handles basket UI updates including total display and checkout button text.
+ * Supports both collapsed and expanded basket views.
  */
 class BasketUIHandler(
     private val basketManager: BasketManager,
@@ -19,6 +20,18 @@ class BasketUIHandler(
     private val animationHandler: SelectionAnimationHandler,
     private val onBasketUpdated: () -> Unit
 ) {
+    
+    // Collapsed view elements (set via setCollapsedViews)
+    private var collapsedTotalView: TextView? = null
+    private var collapsedItemCountView: TextView? = null
+    
+    /**
+     * Set the collapsed view elements for updating.
+     */
+    fun setCollapsedViews(totalView: TextView, itemCountView: TextView) {
+        collapsedTotalView = totalView
+        collapsedItemCountView = itemCountView
+    }
 
     /**
      * Refresh basket UI based on current basket state.
@@ -55,6 +68,7 @@ class BasketUIHandler(
     /**
      * Update the basket total display text.
      * Handles mixed fiat and sats pricing.
+     * Updates both expanded and collapsed views.
      */
     fun updateBasketTotal() {
         val itemCount = basketManager.getTotalItemCount()
@@ -78,36 +92,34 @@ class BasketUIHandler(
             "0.00"
         }
 
+        // Update expanded view total
         basketTotalView.text = formattedTotal
+        
+        // Update collapsed view total and item count
+        collapsedTotalView?.text = formattedTotal
+        updateCollapsedItemCount(itemCount)
+    }
+    
+    /**
+     * Update the item count text in the collapsed view.
+     */
+    private fun updateCollapsedItemCount(count: Int) {
+        collapsedItemCountView?.let { view ->
+            val context = view.context
+            view.text = if (count == 1) {
+                context.getString(R.string.item_selection_basket_item_count, count)
+            } else {
+                context.getString(R.string.item_selection_basket_items_count, count)
+            }
+        }
     }
 
     /**
-     * Update the checkout button text with current totals.
+     * Update the checkout button text.
+     * Total is already visible in the basket, so button just says "Charge".
      */
     fun updateCheckoutButton() {
-        val context = checkoutButton.context
-        val fiatTotal = basketManager.getTotalPrice()
-        val satsTotal = basketManager.getTotalSatsDirectPrice()
-        val currencyCode = currencyManager.getCurrentCurrency()
-        val currency = Amount.Currency.fromCode(currencyCode)
-
-        val buttonText = when {
-            fiatTotal > 0 && satsTotal > 0 -> {
-                val fiatAmount = Amount.fromMajorUnits(fiatTotal, currency)
-                val satsAmount = Amount(satsTotal, Amount.Currency.BTC)
-                context.getString(R.string.basket_charge_fiat_and_sats, fiatAmount.toString(), satsAmount.toString())
-            }
-            satsTotal > 0 -> {
-                val satsAmount = Amount(satsTotal, Amount.Currency.BTC)
-                context.getString(R.string.basket_charge_sats_only, satsAmount.toString())
-            }
-            else -> {
-                val fiatAmount = Amount.fromMajorUnits(fiatTotal, currency)
-                context.getString(R.string.basket_charge_fiat_only, fiatAmount.toString())
-            }
-        }
-
-        checkoutButton.text = buttonText
+        checkoutButton.text = checkoutButton.context.getString(R.string.item_selection_charge_button)
     }
 
     /**

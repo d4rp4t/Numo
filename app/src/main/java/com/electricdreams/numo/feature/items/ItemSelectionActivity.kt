@@ -11,6 +11,7 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.android.flexbox.FlexboxLayout
@@ -18,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -66,6 +68,16 @@ class ItemSelectionActivity : AppCompatActivity() {
     private lateinit var bottomSpacer: View
     private lateinit var bottomBasketCheckoutContainer: LinearLayout
     private var originalBottomSpacerHeight: Int = 0
+    
+    // ----- Collapsed/Expanded Basket Views -----
+    private lateinit var basketCollapsedView: ConstraintLayout
+    private lateinit var basketExpandedView: LinearLayout
+    private lateinit var collapsedItemCount: TextView
+    private lateinit var collapsedTotal: TextView
+    private lateinit var expandChevron: ImageView
+    private lateinit var collapseChevron: ImageView
+    private lateinit var basketScrollView: NestedScrollView
+    private lateinit var basketExpandedHeader: ConstraintLayout
 
     // ----- Category State -----
     private var categoryChipViews: MutableMap<String, TextView> = mutableMapOf()
@@ -147,12 +159,31 @@ class ItemSelectionActivity : AppCompatActivity() {
         bottomSpacer = findViewById(R.id.bottom_spacer)
         bottomBasketCheckoutContainer = findViewById(R.id.bottom_basket_checkout_container)
         originalBottomSpacerHeight = bottomSpacer.layoutParams.height
+        
+        // Collapsed/Expanded basket views
+        basketCollapsedView = findViewById(R.id.basket_collapsed_view)
+        basketExpandedView = findViewById(R.id.basket_expanded_view)
+        collapsedItemCount = findViewById(R.id.collapsed_item_count)
+        collapsedTotal = findViewById(R.id.collapsed_total)
+        expandChevron = findViewById(R.id.expand_chevron)
+        collapseChevron = findViewById(R.id.collapse_chevron)
+        basketScrollView = findViewById(R.id.basket_scroll_view)
+        basketExpandedHeader = findViewById(R.id.basket_expanded_header)
     }
 
     private fun initializeHandlers() {
         animationHandler = SelectionAnimationHandler(
             basketSection = basketSection,
             checkoutContainer = checkoutContainer
+        )
+        
+        // Set up expand/collapse views for animation handler
+        animationHandler.setExpandCollapseViews(
+            collapsed = basketCollapsedView,
+            expanded = basketExpandedView,
+            expandChev = expandChevron,
+            collapseChev = collapseChevron,
+            scrollView = basketScrollView
         )
 
         basketUIHandler = BasketUIHandler(
@@ -161,7 +192,15 @@ class ItemSelectionActivity : AppCompatActivity() {
             basketTotalView = basketTotalView,
             checkoutButton = checkoutButton,
             animationHandler = animationHandler,
-            onBasketUpdated = { basketAdapter.updateItems(basketManager.getBasketItems()) }
+            onBasketUpdated = { 
+                basketAdapter.updateItems(basketManager.getBasketItems())
+            }
+        )
+        
+        // Set up collapsed views for the UI handler
+        basketUIHandler.setCollapsedViews(
+            totalView = collapsedTotal,
+            itemCountView = collapsedItemCount
         )
 
         searchHandler = ItemSearchHandler(
@@ -234,6 +273,20 @@ class ItemSelectionActivity : AppCompatActivity() {
         categoryBadge.setOnClickListener {
             selectCategory(null)
         }
+        
+        // ----- Basket Expand/Collapse Click Listeners -----
+        
+        // Collapsed view - tap to expand
+        basketCollapsedView.setOnClickListener {
+            animationHandler.toggleBasketExpansion()
+            updateBottomSpacer()
+        }
+        
+        // Expanded header - tap to collapse
+        basketExpandedHeader.setOnClickListener {
+            animationHandler.toggleBasketExpansion()
+            updateBottomSpacer()
+        }
     }
 
     // ----- Actions -----
@@ -278,6 +331,8 @@ class ItemSelectionActivity : AppCompatActivity() {
             .setTitle(R.string.item_selection_dialog_clear_basket_title)
             .setMessage(R.string.item_selection_dialog_clear_basket_message)
             .setPositiveButton(R.string.item_selection_dialog_clear_basket_positive) { _, _ ->
+                // Reset to collapsed state before clearing (for next time basket appears)
+                animationHandler.resetToCollapsedState()
                 basketManager.clearBasket()
                 itemsAdapter.clearAllQuantities()
                 refreshBasket()

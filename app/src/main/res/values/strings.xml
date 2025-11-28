@@ -531,7 +531,11 @@
     <string name="item_selection_basket_title">Basket</string>
     <string name="item_selection_basket_clear">Clear</string>
     <string name="item_selection_basket_total_label">Total</string>
-    <string name="item_selection_charge_button">Charge %1$s</string>
-    <string name="item_selection_charge_button_default">Charge $0.00</string>
+    <string name="item_selection_basket_expand">Expand basket</string>
+    <string name="item_selection_basket_collapse">Collapse basket</string>
+    <string name="item_selection_basket_item_count">%1$d item</string>
+    <string name="item_selection_basket_items_count">%1$d items</string>
+    <string name="item_selection_charge_button">Charge</string>
+    <string name="item_selection_charge_button_default">Charge</string>
 
 </resources>
