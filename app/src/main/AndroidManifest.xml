@@ -370,6 +370,17 @@
                 android:value=".feature.items.ItemSelectionActivity" />
         </activity>
         
+        <activity android:name="com.electricdreams.numo.feature.baskets.SavedBasketsActivity"
+            android:exported="false"
+            android:label="@string/saved_baskets_title"
+            android:theme="@style/Theme.Numo"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:parentActivityName=".feature.items.ItemSelectionActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".feature.items.ItemSelectionActivity" />
+        </activity>
+        
         <!-- HCE Service for NDEF tag emulation -->
         <service android:name=".ndef.NdefHostCardEmulationService"
             android:exported="true"

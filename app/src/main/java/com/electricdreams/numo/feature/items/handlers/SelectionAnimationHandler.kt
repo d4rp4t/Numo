@@ -22,7 +22,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
  */
 class SelectionAnimationHandler(
     private val basketSection: CardView,
-    private val checkoutContainer: CardView
+    private val checkoutContainer: View
 ) {
     
     // Basket views (set via setBasketViews)

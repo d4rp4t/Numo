@@ -537,5 +537,34 @@
     <string name="item_selection_basket_items_count">%1$d items</string>
     <string name="item_selection_charge_button">Charge</string>
     <string name="item_selection_charge_button_default">Charge</string>
+    <string name="item_selection_save_button">Save</string>
+    <string name="item_selection_saved_baskets_button">Saved</string>
+    <string name="item_selection_save_basket">Save Basket</string>
+    <string name="item_selection_save_basket_hint">Enter a name (optional)</string>
+    <string name="item_selection_editing_basket">Editing: %1$s</string>
+
+    <!-- Saved Baskets -->
+    <string name="saved_baskets_back">Back</string>
+    <string name="saved_baskets_title">Saved Baskets</string>
+    <string name="saved_baskets_empty_icon">No saved baskets</string>
+    <string name="saved_baskets_empty_title">No saved baskets</string>
+    <string name="saved_baskets_empty_subtitle">Save a basket to keep it open for later.\nPerfect for tabs or restaurant tables.</string>
+    <string name="saved_baskets_meta_format">%1$s • %2$s</string>
+    <string name="saved_baskets_action_rename">Rename</string>
+    <string name="saved_baskets_action_delete">Delete</string>
+    <string name="saved_baskets_rename_title">Rename Basket</string>
+    <string name="saved_baskets_rename_hint">Enter basket name</string>
+    <string name="saved_baskets_delete_title">Delete Basket</string>
+    <string name="saved_baskets_delete_message">Delete \"%1$s\"? This cannot be undone.</string>
+
+    <!-- Common -->
+    <string name="common_save">Save</string>
+    <string name="common_delete">Delete</string>
+
+    <!-- Plurals -->
+    <plurals name="saved_baskets_item_count">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d items</item>
+    </plurals>
 
 </resources>

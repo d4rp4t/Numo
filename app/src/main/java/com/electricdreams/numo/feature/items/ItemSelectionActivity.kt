@@ -28,7 +28,9 @@ import com.electricdreams.numo.R
 import com.electricdreams.numo.core.util.BasketManager
 import com.electricdreams.numo.core.util.CurrencyManager
 import com.electricdreams.numo.core.util.ItemManager
+import com.electricdreams.numo.core.util.SavedBasketManager
 import com.electricdreams.numo.core.worker.BitcoinPriceWorker
+import com.electricdreams.numo.feature.baskets.SavedBasketsActivity
 import com.electricdreams.numo.feature.items.adapters.SelectionBasketAdapter
 import com.electricdreams.numo.feature.items.adapters.SelectionItemsAdapter
 import com.electricdreams.numo.feature.items.handlers.BasketUIHandler
@@ -38,18 +40,21 @@ import com.electricdreams.numo.feature.items.handlers.SelectionAnimationHandler
 
 /**
  * Activity for selecting items and adding them to a basket for checkout.
- * Supports search, quantity adjustments, custom variations, and checkout flow.
+ * Supports search, quantity adjustments, custom variations, saved baskets, and checkout flow.
  */
 class ItemSelectionActivity : AppCompatActivity() {
 
     // ----- Managers -----
     private lateinit var itemManager: ItemManager
     private lateinit var basketManager: BasketManager
+    private lateinit var savedBasketManager: SavedBasketManager
     private lateinit var bitcoinPriceWorker: BitcoinPriceWorker
     private lateinit var currencyManager: CurrencyManager
 
     // ----- Views -----
     private lateinit var mainScrollView: NestedScrollView
+    private lateinit var toolbarTitle: TextView
+    private lateinit var savedBasketsButton: TextView
     private lateinit var searchInput: EditText
     private lateinit var scanButton: ImageButton
     private lateinit var clearFiltersButton: ImageButton
@@ -63,7 +68,9 @@ class ItemSelectionActivity : AppCompatActivity() {
     private lateinit var itemsRecyclerView: RecyclerView
     private lateinit var emptyView: LinearLayout
     private lateinit var noResultsView: LinearLayout
-    private lateinit var checkoutContainer: CardView
+    private lateinit var checkoutContainer: LinearLayout
+    private lateinit var saveButtonContainer: CardView
+    private lateinit var saveButton: Button
     private lateinit var checkoutButton: Button
     private lateinit var bottomSpacer: View
     private lateinit var bottomBasketCheckoutContainer: LinearLayout
@@ -96,6 +103,21 @@ class ItemSelectionActivity : AppCompatActivity() {
             itemsAdapter.notifyDataSetChanged()
         }
     }
+    
+    private val savedBasketsLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == SavedBasketsActivity.RESULT_BASKET_LOADED) {
+            val basketId = result.data?.getStringExtra(SavedBasketsActivity.EXTRA_BASKET_ID)
+            if (basketId != null) {
+                loadSavedBasket(basketId)
+            }
+        }
+    }
+
+    companion object {
+        const val EXTRA_BASKET_ID = "basket_id"
+    }
 
     // ----- Lifecycle -----
 
@@ -110,9 +132,16 @@ class ItemSelectionActivity : AppCompatActivity() {
         setupRecyclerViews()
         setupClickListeners()
 
+        // Check if we're loading a saved basket from intent
+        val basketIdFromIntent = intent.getStringExtra(EXTRA_BASKET_ID)
+        if (basketIdFromIntent != null) {
+            loadSavedBasket(basketIdFromIntent)
+        }
+
         // Load initial data
         searchHandler.loadItems()
         refreshBasket()
+        updateEditingState()
 
         bitcoinPriceWorker.start()
     }
@@ -122,6 +151,7 @@ class ItemSelectionActivity : AppCompatActivity() {
         // Refresh in case items were modified
         searchHandler.loadItems()
         refreshBasket()
+        updateEditingState()
     }
 
     // ----- Initialization -----
@@ -129,14 +159,19 @@ class ItemSelectionActivity : AppCompatActivity() {
     private fun initializeManagers() {
         itemManager = ItemManager.getInstance(this)
         basketManager = BasketManager.getInstance()
+        savedBasketManager = SavedBasketManager.getInstance(this)
         bitcoinPriceWorker = BitcoinPriceWorker.getInstance(this)
         currencyManager = CurrencyManager.getInstance(this)
     }
 
     private fun initializeViews() {
-        findViewById<View>(R.id.back_button).setOnClickListener { finish() }
+        findViewById<View>(R.id.back_button).setOnClickListener { 
+            handleBackPress()
+        }
 
         mainScrollView = findViewById(R.id.main_scroll_view)
+        toolbarTitle = findViewById(R.id.toolbar_title)
+        savedBasketsButton = findViewById(R.id.saved_baskets_button)
         searchInput = findViewById(R.id.search_input)
         scanButton = findViewById(R.id.scan_button)
         clearFiltersButton = findViewById(R.id.clear_filters_button)
@@ -151,6 +186,8 @@ class ItemSelectionActivity : AppCompatActivity() {
         emptyView = findViewById(R.id.empty_view)
         noResultsView = findViewById(R.id.no_results_view)
         checkoutContainer = findViewById(R.id.checkout_container)
+        saveButtonContainer = findViewById(R.id.save_button_container)
+        saveButton = findViewById(R.id.save_button)
         checkoutButton = findViewById(R.id.checkout_button)
         bottomSpacer = findViewById(R.id.bottom_spacer)
         bottomBasketCheckoutContainer = findViewById(R.id.bottom_basket_checkout_container)
@@ -183,6 +220,7 @@ class ItemSelectionActivity : AppCompatActivity() {
             animationHandler = animationHandler,
             onBasketUpdated = { 
                 basketAdapter.updateItems(basketManager.getBasketItems())
+                updateEditingState()
             }
         )
         
@@ -245,7 +283,21 @@ class ItemSelectionActivity : AppCompatActivity() {
         }
 
         checkoutButton.setOnClickListener {
+            // Delete the saved basket after successful checkout
+            val editingId = savedBasketManager.currentEditingBasketId
+            if (editingId != null) {
+                savedBasketManager.deleteBasket(editingId)
+                savedBasketManager.clearEditingState()
+            }
             checkoutHandler.proceedToCheckout()
+        }
+        
+        saveButton.setOnClickListener {
+            saveCurrentBasket()
+        }
+        
+        savedBasketsButton.setOnClickListener {
+            openSavedBaskets()
         }
 
         // Setup search focus listener to show/hide category chips
@@ -265,6 +317,104 @@ class ItemSelectionActivity : AppCompatActivity() {
             animationHandler.toggleBasketExpansion()
             updateBottomSpacer()
         }
+    }
+
+    // ----- Saved Baskets -----
+    
+    private fun loadSavedBasket(basketId: String) {
+        if (savedBasketManager.loadBasketForEditing(basketId, basketManager)) {
+            itemsAdapter.syncQuantitiesFromBasket()
+            refreshBasket()
+            updateEditingState()
+        }
+    }
+    
+    private fun openSavedBaskets() {
+        val intent = Intent(this, SavedBasketsActivity::class.java)
+        savedBasketsLauncher.launch(intent)
+    }
+    
+    private fun saveCurrentBasket() {
+        if (savedBasketManager.isEditingExistingBasket()) {
+            // Update existing basket
+            val basket = savedBasketManager.getCurrentEditingBasket()
+            savedBasketManager.saveCurrentBasket(basket?.name, basketManager)
+            savedBasketManager.clearEditingState()
+            basketManager.clearBasket()
+            itemsAdapter.clearAllQuantities()
+            refreshBasket()
+            finish()
+        } else {
+            // Show dialog for new basket name
+            showSaveBasketDialog()
+        }
+    }
+    
+    private fun showSaveBasketDialog() {
+        val editText = EditText(this).apply {
+            hint = getString(R.string.item_selection_save_basket_hint)
+            setPadding(48, 32, 48, 32)
+        }
+        
+        AlertDialog.Builder(this)
+            .setTitle(R.string.item_selection_save_basket)
+            .setView(editText)
+            .setPositiveButton(R.string.common_save) { _, _ ->
+                val name = editText.text.toString().trim().takeIf { it.isNotEmpty() }
+                savedBasketManager.saveCurrentBasket(name, basketManager)
+                savedBasketManager.clearEditingState()
+                basketManager.clearBasket()
+                itemsAdapter.clearAllQuantities()
+                refreshBasket()
+                finish()
+            }
+            .setNegativeButton(R.string.common_cancel, null)
+            .show()
+    }
+    
+    private fun updateEditingState() {
+        val isEditing = savedBasketManager.isEditingExistingBasket()
+        val basket = savedBasketManager.getCurrentEditingBasket()
+        val hasItems = basketManager.getBasketItems().isNotEmpty()
+        
+        // Update title
+        if (isEditing && basket != null) {
+            val index = savedBasketManager.getBasketIndex(basket.id)
+            val displayName = basket.getDisplayName(index)
+            toolbarTitle.text = getString(R.string.item_selection_editing_basket, displayName)
+        } else {
+            toolbarTitle.text = getString(R.string.item_selection_toolbar_title)
+        }
+        
+        // Show/hide save button (only when editing existing basket AND has items)
+        saveButtonContainer.visibility = if (isEditing && hasItems) View.VISIBLE else View.GONE
+    }
+    
+    private fun handleBackPress() {
+        if (savedBasketManager.isEditingExistingBasket() && basketManager.getBasketItems().isNotEmpty()) {
+            // Ask to save changes
+            AlertDialog.Builder(this)
+                .setTitle(R.string.item_selection_save_basket)
+                .setMessage("Save changes to this basket?")
+                .setPositiveButton(R.string.common_save) { _, _ ->
+                    saveCurrentBasket()
+                }
+                .setNegativeButton("Discard") { _, _ ->
+                    savedBasketManager.clearEditingState()
+                    basketManager.clearBasket()
+                    finish()
+                }
+                .setNeutralButton(R.string.common_cancel, null)
+                .show()
+        } else {
+            savedBasketManager.clearEditingState()
+            finish()
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        handleBackPress()
     }
 
     // ----- Actions -----
