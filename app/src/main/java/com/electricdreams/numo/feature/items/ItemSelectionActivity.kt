@@ -287,6 +287,10 @@ class ItemSelectionActivity : AppCompatActivity() {
             clearAllFilters()
         }
 
+        clearBasketButton.setOnClickListener {
+            showClearBasketDialog()
+        }
+
         basketUndoButton.setOnClickListener {
             if (basketManager.undo()) {
                 itemsAdapter.syncQuantitiesFromBasket()
