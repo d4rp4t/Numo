@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import com.electricdreams.numo.R
 import com.electricdreams.numo.core.model.Amount
+import com.electricdreams.numo.core.util.BalanceRefreshBroadcast
 
 /**
  * Success screen for withdrawal completion
@@ -78,6 +79,12 @@ class WithdrawSuccessActivity : AppCompatActivity() {
         checkmarkIcon.postDelayed({
             animateCheckmark()
         }, 100)
+    }
+    
+    override fun finish() {
+        // Broadcast balance change so other activities refresh their balance displays
+        BalanceRefreshBroadcast.send(this, BalanceRefreshBroadcast.REASON_WITHDRAWAL)
+        super.finish()
     }
 
     private fun animateCheckmark() {

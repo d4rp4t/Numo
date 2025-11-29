@@ -3,6 +3,7 @@ package com.electricdreams.numo.feature.autowithdraw
 import android.content.Context
 import android.util.Log
 import com.electricdreams.numo.core.cashu.CashuWalletManager
+import com.electricdreams.numo.core.util.BalanceRefreshBroadcast
 import com.electricdreams.numo.core.util.MintManager
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -357,6 +358,10 @@ class AutoWithdrawManager private constructor(private val context: Context) {
                     Log.d(TAG, "   Lightning address: $lightningAddress")
                     
                     historyEntry = historyEntry.copy(status = WithdrawHistoryEntry.STATUS_COMPLETED)
+                    
+                    // Broadcast balance change so other activities can refresh
+                    BalanceRefreshBroadcast.send(context, BalanceRefreshBroadcast.REASON_AUTO_WITHDRAWAL)
+                    
                     withContext(Dispatchers.Main) {
                         progressListener?.onWithdrawCompleted(mintUrl, withdrawAmount, feeReserve)
                     }

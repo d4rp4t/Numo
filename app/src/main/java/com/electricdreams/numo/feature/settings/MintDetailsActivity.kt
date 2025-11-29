@@ -1,5 +1,6 @@
 package com.electricdreams.numo.feature.settings
 
+import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -23,6 +24,7 @@ import androidx.lifecycle.lifecycleScope
 import com.electricdreams.numo.R
 import com.electricdreams.numo.core.cashu.CashuWalletManager
 import com.electricdreams.numo.core.model.Amount
+import com.electricdreams.numo.core.util.BalanceRefreshBroadcast
 import com.electricdreams.numo.core.util.MintIconCache
 import com.electricdreams.numo.core.util.MintManager
 import com.electricdreams.numo.ui.util.DialogHelper
@@ -93,6 +95,12 @@ class MintDetailsActivity : AppCompatActivity() {
     private var mintUrl: String = ""
     private var isLightningMint: Boolean = false
     private var hasFetchError: Boolean = false
+    
+    // Balance refresh broadcast receiver
+    private val balanceRefreshReceiver: BroadcastReceiver = BalanceRefreshBroadcast.createReceiver { reason ->
+        // Refresh balance when we receive a broadcast (e.g., from withdrawal success)
+        loadBalance()
+    }
 
     private val contactMethods = listOf(
         "nostr" to R.drawable.ic_contact_nostr,
@@ -117,6 +125,24 @@ class MintDetailsActivity : AppCompatActivity() {
         setupListeners()
         loadMintDetails()
         startEntranceAnimations()
+    }
+    
+    override fun onStart() {
+        super.onStart()
+        // Register for balance refresh broadcasts
+        BalanceRefreshBroadcast.register(this, balanceRefreshReceiver)
+    }
+    
+    override fun onStop() {
+        super.onStop()
+        // Unregister balance refresh receiver
+        BalanceRefreshBroadcast.unregister(this, balanceRefreshReceiver)
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // Reload balance when returning to this screen
+        loadBalance()
     }
 
     private fun initViews() {
@@ -553,6 +579,9 @@ class MintDetailsActivity : AppCompatActivity() {
 
     private fun deleteMint() {
         mintManager.removeMint(mintUrl)
+        
+        // Broadcast that a mint was removed so other activities can refresh
+        BalanceRefreshBroadcast.send(this, BalanceRefreshBroadcast.REASON_MINT_REMOVED)
         
         val resultIntent = Intent().apply {
             putExtra(EXTRA_MINT_URL, mintUrl)

@@ -1,5 +1,6 @@
 package com.electricdreams.numo.feature.settings
 
+import android.content.BroadcastReceiver
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.os.Bundle
@@ -19,6 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import com.electricdreams.numo.R
 import com.electricdreams.numo.core.cashu.CashuWalletManager
 import com.electricdreams.numo.core.model.Amount
+import com.electricdreams.numo.core.util.BalanceRefreshBroadcast
 import com.electricdreams.numo.core.util.MintIconCache
 import com.electricdreams.numo.core.util.MintManager
 import com.electricdreams.numo.feature.scanner.QRScannerActivity
@@ -74,6 +76,12 @@ class MintsSettingsActivity : AppCompatActivity() {
     private var mintBalances = mutableMapOf<String, Long>()
     private var selectedLightningMint: String? = null
     private val mintItems = mutableMapOf<String, MintListItem>()
+    
+    // Balance refresh broadcast receiver
+    private val balanceRefreshReceiver: BroadcastReceiver = BalanceRefreshBroadcast.createReceiver { reason ->
+        // Refresh balances when we receive a broadcast (e.g., from withdrawal success)
+        refreshBalances()
+    }
 
     // Activity result launchers
     private val qrScannerLauncher = registerForActivityResult(
@@ -120,6 +128,18 @@ class MintsSettingsActivity : AppCompatActivity() {
         setupListeners()
         loadMintsAndBalances()
         startEntranceAnimations()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Register for balance refresh broadcasts
+        BalanceRefreshBroadcast.register(this, balanceRefreshReceiver)
+    }
+    
+    override fun onStop() {
+        super.onStop()
+        // Unregister balance refresh receiver
+        BalanceRefreshBroadcast.unregister(this, balanceRefreshReceiver)
     }
 
     override fun onResume() {
@@ -411,6 +431,9 @@ class MintsSettingsActivity : AppCompatActivity() {
                 addMintCard.clearInput()
                 addMintCard.collapseIfExpanded()
                 
+                // Broadcast that mints changed so other activities can refresh
+                BalanceRefreshBroadcast.send(this@MintsSettingsActivity, BalanceRefreshBroadcast.REASON_MINT_ADDED)
+                
                 Toast.makeText(
                     this@MintsSettingsActivity,
                     getString(R.string.mints_added_toast),
@@ -504,6 +527,10 @@ class MintsSettingsActivity : AppCompatActivity() {
         selectedLightningMint = null
         getPreferences(MODE_PRIVATE).edit().remove(PREF_LIGHTNING_MINT).apply()
         loadMintsAndBalances()
+        
+        // Broadcast that mints were reset so other activities can refresh
+        BalanceRefreshBroadcast.send(this, BalanceRefreshBroadcast.REASON_MINT_RESET)
+        
         Toast.makeText(this, getString(R.string.mints_reset_toast), Toast.LENGTH_SHORT).show()
     }
 
