@@ -7,14 +7,6 @@
     android:background="@color/color_primary_green"
     tools:context=".ModernPOSActivity">
 
-    <!-- Auto-Withdraw Progress Indicator -->
-    <include
-        layout="@layout/auto_withdraw_progress_indicator"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:id="@+id/auto_withdraw_progress"
-        app:layout_constraintTop_toTopOf="parent" />
-
     <!-- Top Navigation Bar -->
     <LinearLayout
         android:id="@+id/top_navigation"
@@ -24,7 +16,7 @@
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="8dp"
-        app:layout_constraintTop_toBottomOf="@id/auto_withdraw_progress">
+        app:layout_constraintTop_toTopOf="parent">
 
         <!-- Catalog (Item List) -->
         <ImageButton
@@ -230,8 +222,14 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-
-
-
+    <!-- Auto-Withdraw Progress Indicator (floating below the top navigation bar) -->
+    <include
+        android:id="@+id/auto_withdraw_progress"
+        layout="@layout/auto_withdraw_progress_indicator"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/top_navigation"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
