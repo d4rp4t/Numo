@@ -18,7 +18,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.cardview.widget.CardView
@@ -32,6 +31,7 @@ import com.electricdreams.numo.core.model.Amount
 import com.electricdreams.numo.core.util.MintManager
 import com.electricdreams.numo.feature.settings.WithdrawLightningActivity
 import com.electricdreams.numo.ui.components.MintSelectionBottomSheet
+import com.electricdreams.numo.ui.util.DialogHelper
 import com.google.android.material.slider.Slider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -236,37 +236,34 @@ class AutoWithdrawSettingsActivity : AppCompatActivity() {
     }
     
     private fun showThresholdEditDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_threshold_edit, null)
-        val editText = dialogView.findViewById<EditText>(R.id.threshold_edit_text)
-        
-        // Pre-fill with current value (without commas)
-        editText.setText(currentThreshold.toString())
-        editText.setSelection(editText.text.length)
-        
-        val dialog = AlertDialog.Builder(this, R.style.Theme_Numo_Dialog)
-            .setTitle(R.string.auto_withdraw_threshold_title)
-            .setView(dialogView)
-            .setPositiveButton(R.string.common_save) { _, _ ->
-                val newThreshold = editText.text.toString().replace(",", "").toLongOrNull()
-                    ?: AutoWithdrawSettingsManager.DEFAULT_THRESHOLD_SATS
-                currentThreshold = newThreshold.coerceIn(
-                    AutoWithdrawSettingsManager.MIN_THRESHOLD_SATS,
-                    AutoWithdrawSettingsManager.MAX_THRESHOLD_SATS
-                )
-                settingsManager.setDefaultThreshold(currentThreshold)
-                updateThresholdDisplay()
-            }
-            .setNegativeButton(R.string.common_cancel, null)
-            .create()
-        
-        dialog.show()
-        
-        // Show keyboard
-        editText.requestFocus()
-        editText.postDelayed({
-            val imm = getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
-            imm?.showSoftInput(editText, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-        }, 300)
+        DialogHelper.showInput(
+            context = this,
+            config = DialogHelper.InputConfig(
+                title = getString(R.string.auto_withdraw_threshold_title),
+                description = getString(R.string.auto_withdraw_threshold_subtitle),
+                hint = "50000",
+                initialValue = currentThreshold.toString(),
+                prefix = "₿",
+                helperText = getString(R.string.auto_withdraw_threshold_helper),
+                inputType = android.text.InputType.TYPE_CLASS_NUMBER,
+                saveText = getString(R.string.common_save),
+                onSave = { value ->
+                    val newThreshold = value.replace(",", "").toLongOrNull()
+                        ?: AutoWithdrawSettingsManager.DEFAULT_THRESHOLD_SATS
+                    currentThreshold = newThreshold.coerceIn(
+                        AutoWithdrawSettingsManager.MIN_THRESHOLD_SATS,
+                        AutoWithdrawSettingsManager.MAX_THRESHOLD_SATS
+                    )
+                    settingsManager.setDefaultThreshold(currentThreshold)
+                    updateThresholdDisplay()
+                },
+                validator = { value ->
+                    val amount = value.replace(",", "").toLongOrNull()
+                    amount != null && amount >= AutoWithdrawSettingsManager.MIN_THRESHOLD_SATS 
+                        && amount <= AutoWithdrawSettingsManager.MAX_THRESHOLD_SATS
+                }
+            )
+        )
     }
     
     private fun updateThresholdDisplay() {

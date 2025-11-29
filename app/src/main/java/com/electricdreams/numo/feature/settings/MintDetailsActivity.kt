@@ -17,7 +17,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
@@ -26,6 +25,7 @@ import com.electricdreams.numo.core.cashu.CashuWalletManager
 import com.electricdreams.numo.core.model.Amount
 import com.electricdreams.numo.core.util.MintIconCache
 import com.electricdreams.numo.core.util.MintManager
+import com.electricdreams.numo.ui.util.DialogHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -538,14 +538,17 @@ class MintDetailsActivity : AppCompatActivity() {
     private fun showDeleteConfirmation() {
         val displayName = mintManager.getMintDisplayName(mintUrl)
         
-        AlertDialog.Builder(this, R.style.Theme_Numo_Dialog)
-            .setTitle(getString(R.string.mints_remove_title))
-            .setMessage(getString(R.string.mints_remove_message, displayName))
-            .setPositiveButton(getString(R.string.mints_remove_confirm)) { _, _ ->
-                deleteMint()
-            }
-            .setNegativeButton(getString(R.string.common_cancel), null)
-            .show()
+        DialogHelper.showConfirmation(
+            context = this,
+            config = DialogHelper.ConfirmationConfig(
+                title = getString(R.string.mints_remove_title),
+                message = getString(R.string.mints_remove_message, displayName),
+                confirmText = getString(R.string.mints_remove_confirm),
+                cancelText = getString(R.string.common_cancel),
+                isDestructive = true,
+                onConfirm = { deleteMint() }
+            )
+        )
     }
 
     private fun deleteMint() {

@@ -286,7 +286,7 @@
     <string name="nfc_payment_error_card_sw">Card Error: (SW: 0x%04X)</string>
     <string name="nfc_payment_error_generic">Payment failed: %1$s</string>
     <string name="nfc_payment_error_nfc_comm">NFC Communication Error: %1$s</string>
-    <string name="nfc_payment_error_satocash">Satocash Card Error: %1$s (SW: 0x%04X)</string>
+    <string name="nfc_payment_error_satocash" formatted="false">Satocash Card Error: %1$s (SW: 0x%04X)</string>
     <string name="nfc_payment_error_unexpected">An unexpected error occurred: %1$s</string>
 
     <!-- Common buttons -->
@@ -591,6 +591,7 @@
     <!-- Common -->
     <string name="common_save">Save</string>
     <string name="common_delete">Delete</string>
+    <string name="common_confirm">Confirm</string>
 
     <!-- Basket Names Settings -->
     <string name="basket_names_settings_title">Basket Names</string>
@@ -654,6 +655,7 @@
     <string name="auto_withdraw_threshold_subtitle">Trigger when balance exceeds</string>
     <string name="auto_withdraw_threshold_label">Threshold</string>
     <string name="auto_withdraw_threshold_hint">Trigger withdrawal when balance reaches this amount</string>
+    <string name="auto_withdraw_threshold_helper">Min: ₿1,000 • Max: ₿1,000,000</string>
     
     <string name="auto_withdraw_percentage_title">Withdraw Amount</string>
     <string name="auto_withdraw_percentage_subtitle">Percentage of balance to send</string>

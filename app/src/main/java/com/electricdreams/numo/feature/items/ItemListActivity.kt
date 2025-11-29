@@ -18,7 +18,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -26,6 +25,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.electricdreams.numo.R
 import com.electricdreams.numo.core.model.Item
 import com.electricdreams.numo.core.util.ItemManager
+import com.electricdreams.numo.ui.util.DialogHelper
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -134,17 +134,22 @@ class ItemListActivity : AppCompatActivity() {
     }
 
     private fun showClearAllDialog() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.item_list_dialog_clear_all_title)
-            .setMessage(R.string.item_list_dialog_clear_all_message)
-            .setPositiveButton(R.string.item_list_dialog_clear_all_positive) { _, _ ->
-                itemManager.clearItems()
-                refreshItems()
-                setResult(Activity.RESULT_OK)
-                Toast.makeText(this, getString(R.string.item_list_toast_all_items_cleared), Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton(R.string.common_cancel, null)
-            .show()
+        DialogHelper.showConfirmation(
+            context = this,
+            config = DialogHelper.ConfirmationConfig(
+                title = getString(R.string.item_list_dialog_clear_all_title),
+                message = getString(R.string.item_list_dialog_clear_all_message),
+                confirmText = getString(R.string.item_list_dialog_clear_all_positive),
+                cancelText = getString(R.string.common_cancel),
+                isDestructive = true,
+                onConfirm = {
+                    itemManager.clearItems()
+                    refreshItems()
+                    setResult(Activity.RESULT_OK)
+                    Toast.makeText(this, getString(R.string.item_list_toast_all_items_cleared), Toast.LENGTH_SHORT).show()
+                }
+            )
+        )
     }
 
     private fun importCsvFile(uri: Uri) {

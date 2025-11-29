@@ -13,7 +13,6 @@ import android.widget.TextView
 import com.google.android.material.imageview.ShapeableImageView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.lifecycle.lifecycleScope
@@ -25,6 +24,7 @@ import com.electricdreams.numo.core.util.MintManager
 import com.electricdreams.numo.feature.scanner.QRScannerActivity
 import com.electricdreams.numo.ui.components.AddMintInputCard
 import com.electricdreams.numo.ui.components.MintListItem
+import com.electricdreams.numo.ui.util.DialogHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -486,14 +486,17 @@ class MintsSettingsActivity : AppCompatActivity() {
     }
 
     private fun showResetConfirmation() {
-        AlertDialog.Builder(this, R.style.Theme_Numo_Dialog)
-            .setTitle(getString(R.string.mints_reset_title))
-            .setMessage(getString(R.string.mints_reset_message))
-            .setPositiveButton(getString(R.string.mints_reset_confirm)) { _, _ ->
-                resetToDefaults()
-            }
-            .setNegativeButton(getString(R.string.common_cancel), null)
-            .show()
+        DialogHelper.showConfirmation(
+            context = this,
+            config = DialogHelper.ConfirmationConfig(
+                title = getString(R.string.mints_reset_title),
+                message = getString(R.string.mints_reset_message),
+                confirmText = getString(R.string.mints_reset_confirm),
+                cancelText = getString(R.string.common_cancel),
+                isDestructive = true,
+                onConfirm = { resetToDefaults() }
+            )
+        )
     }
 
     private fun resetToDefaults() {

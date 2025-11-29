@@ -17,6 +17,7 @@ import com.electricdreams.numo.core.util.CurrencyManager
 import com.electricdreams.numo.core.util.SavedBasketManager
 import com.electricdreams.numo.feature.history.PaymentsHistoryActivity
 import com.electricdreams.numo.feature.history.TransactionDetailActivity
+import com.electricdreams.numo.ui.util.DialogHelper
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -129,15 +130,20 @@ class BasketArchiveActivity : AppCompatActivity() {
         val index = savedBasketManager.getArchivedBasketIndex(basket.id)
         val displayName = basket.getDisplayName(index)
 
-        AlertDialog.Builder(this)
-            .setTitle(R.string.basket_archive_delete_title)
-            .setMessage(getString(R.string.basket_archive_delete_message, displayName))
-            .setPositiveButton(R.string.common_delete) { _, _ ->
-                savedBasketManager.deleteArchivedBasket(basket.id)
-                loadArchivedBaskets()
-            }
-            .setNegativeButton(R.string.common_cancel, null)
-            .show()
+        DialogHelper.showConfirmation(
+            context = this,
+            config = DialogHelper.ConfirmationConfig(
+                title = getString(R.string.basket_archive_delete_title),
+                message = getString(R.string.basket_archive_delete_message, displayName),
+                confirmText = getString(R.string.common_delete),
+                cancelText = getString(R.string.common_cancel),
+                isDestructive = true,
+                onConfirm = {
+                    savedBasketManager.deleteArchivedBasket(basket.id)
+                    loadArchivedBaskets()
+                }
+            )
+        )
     }
 }
 

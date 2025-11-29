@@ -1,11 +1,9 @@
 package com.electricdreams.numo.feature.tips
 
-import android.app.AlertDialog
 import android.os.Bundle
 import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -13,6 +11,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import com.electricdreams.numo.R
+import com.electricdreams.numo.ui.util.DialogHelper
 
 /**
  * Settings activity for configuring tip options.
@@ -130,93 +129,96 @@ class TipsSettingsActivity : AppCompatActivity() {
     }
     
     private fun showAddPresetDialog() {
-        val input = EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER
-            hint = getString(R.string.tips_dialog_add_preset_hint)
-            setPadding(
-                (24 * resources.displayMetrics.density).toInt(),
-                (16 * resources.displayMetrics.density).toInt(),
-                (24 * resources.displayMetrics.density).toInt(),
-                (16 * resources.displayMetrics.density).toInt()
+        DialogHelper.showInput(
+            context = this,
+            config = DialogHelper.InputConfig(
+                title = getString(R.string.tips_dialog_add_preset_title),
+                hint = getString(R.string.tips_dialog_add_preset_hint),
+                suffix = "%",
+                inputType = InputType.TYPE_CLASS_NUMBER,
+                saveText = getString(R.string.tips_dialog_add_preset_positive),
+                onSave = { value ->
+                    val percentage = value.toIntOrNull()
+                    
+                    if (percentage == null || percentage !in 1..100) {
+                        Toast.makeText(this, R.string.tips_error_invalid_percentage, Toast.LENGTH_SHORT).show()
+                        return@InputConfig
+                    }
+                    
+                    if (tipsManager.addPreset(percentage)) {
+                        refreshPresetsList()
+                    } else {
+                        Toast.makeText(this, R.string.tips_error_could_not_add_preset, Toast.LENGTH_SHORT).show()
+                    }
+                },
+                validator = { value ->
+                    val percentage = value.toIntOrNull()
+                    percentage != null && percentage in 1..100
+                }
             )
-        }
-        
-        AlertDialog.Builder(this)
-            .setTitle(R.string.tips_dialog_add_preset_title)
-            .setView(input)
-            .setPositiveButton(R.string.tips_dialog_add_preset_positive) { _, _ ->
-                val percentageStr = input.text.toString()
-                val percentage = percentageStr.toIntOrNull()
-                
-                if (percentage == null || percentage !in 1..100) {
-                    Toast.makeText(this, R.string.tips_error_invalid_percentage, Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                
-                if (tipsManager.addPreset(percentage)) {
-                    refreshPresetsList()
-                } else {
-                    Toast.makeText(this, R.string.tips_error_could_not_add_preset, Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton(R.string.tips_dialog_add_preset_negative, null)
-            .show()
+        )
     }
     
     private fun showEditPresetDialog(index: Int, currentPercentage: Int) {
-        val input = EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER
-            setText(currentPercentage.toString())
-            setSelection(text.length)
-            setPadding(
-                (24 * resources.displayMetrics.density).toInt(),
-                (16 * resources.displayMetrics.density).toInt(),
-                (24 * resources.displayMetrics.density).toInt(),
-                (16 * resources.displayMetrics.density).toInt()
-            )
-        }
-        
-        AlertDialog.Builder(this)
-            .setTitle(R.string.tips_dialog_edit_preset_title)
-            .setView(input)
-            .setPositiveButton(R.string.tips_dialog_edit_preset_positive) { _, _ ->
-                val percentageStr = input.text.toString()
-                val percentage = percentageStr.toIntOrNull()
-                
-                if (percentage == null || percentage !in 1..100) {
-                    Toast.makeText(this, R.string.tips_error_invalid_percentage, Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+        DialogHelper.showInput(
+            context = this,
+            config = DialogHelper.InputConfig(
+                title = getString(R.string.tips_dialog_edit_preset_title),
+                initialValue = currentPercentage.toString(),
+                suffix = "%",
+                inputType = InputType.TYPE_CLASS_NUMBER,
+                saveText = getString(R.string.tips_dialog_edit_preset_positive),
+                onSave = { value ->
+                    val percentage = value.toIntOrNull()
+                    
+                    if (percentage == null || percentage !in 1..100) {
+                        Toast.makeText(this, R.string.tips_error_invalid_percentage, Toast.LENGTH_SHORT).show()
+                        return@InputConfig
+                    }
+                    
+                    tipsManager.updatePreset(index, percentage)
+                    refreshPresetsList()
+                },
+                validator = { value ->
+                    val percentage = value.toIntOrNull()
+                    percentage != null && percentage in 1..100
                 }
-                
-                tipsManager.updatePreset(index, percentage)
-                refreshPresetsList()
-            }
-            .setNegativeButton(R.string.tips_dialog_add_preset_negative, null)
-            .show()
+            )
+        )
     }
     
     private fun deletePreset(percentage: Int) {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.tips_dialog_remove_preset_title)
-            .setMessage(getString(R.string.tips_dialog_remove_preset_message, percentage))
-            .setPositiveButton(R.string.tips_dialog_remove_preset_positive) { _, _ ->
-                tipsManager.removePreset(percentage)
-                refreshPresetsList()
-            }
-            .setNegativeButton(R.string.tips_dialog_add_preset_negative, null)
-            .show()
+        DialogHelper.showConfirmation(
+            context = this,
+            config = DialogHelper.ConfirmationConfig(
+                title = getString(R.string.tips_dialog_remove_preset_title),
+                message = getString(R.string.tips_dialog_remove_preset_message, percentage),
+                confirmText = getString(R.string.tips_dialog_remove_preset_positive),
+                cancelText = getString(R.string.tips_dialog_add_preset_negative),
+                isDestructive = true,
+                onConfirm = {
+                    tipsManager.removePreset(percentage)
+                    refreshPresetsList()
+                }
+            )
+        )
     }
     
     private fun showResetConfirmation() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.tips_dialog_reset_defaults_title)
-            .setMessage(R.string.tips_dialog_reset_defaults_message)
-            .setPositiveButton(R.string.tips_dialog_reset_defaults_positive) { _, _ ->
-                tipsManager.resetToDefaults()
-                refreshPresetsList()
-                Toast.makeText(this, R.string.tips_toast_reset_to_defaults, Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton(R.string.tips_dialog_add_preset_negative, null)
-            .show()
+        DialogHelper.showConfirmation(
+            context = this,
+            config = DialogHelper.ConfirmationConfig(
+                title = getString(R.string.tips_dialog_reset_defaults_title),
+                message = getString(R.string.tips_dialog_reset_defaults_message),
+                confirmText = getString(R.string.tips_dialog_reset_defaults_positive),
+                cancelText = getString(R.string.tips_dialog_add_preset_negative),
+                isDestructive = false,
+                onConfirm = {
+                    tipsManager.resetToDefaults()
+                    refreshPresetsList()
+                    Toast.makeText(this, R.string.tips_toast_reset_to_defaults, Toast.LENGTH_SHORT).show()
+                }
+            )
+        )
     }
 }
