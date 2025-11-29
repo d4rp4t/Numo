@@ -103,9 +103,9 @@ class AutoWithdrawSettingsActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
-        // Back button (new layout)
-        findViewById<ImageButton>(R.id.back_button).setOnClickListener { 
-            onBackPressedDispatcher.onBackPressed() 
+        // Back button - use standard chevron pattern for consistency
+        findViewById<ImageButton>(R.id.back_button).setOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
         }
 
         // Hero section
