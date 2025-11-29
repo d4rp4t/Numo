@@ -89,36 +89,45 @@
         android:paddingBottom="20dp">
 
         <!-- Cancel Button (Secondary - white background with border) -->
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/cancel_button"
             android:layout_width="0dp"
             android:layout_height="52dp"
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
-            android:background="@drawable/bg_button_secondary_outlined"
-            android:backgroundTint="@null"
             android:text="@string/common_cancel"
-            android:textColor="#111111"
+            android:textColor="@color/color_text_primary"
             android:textSize="16sp"
             android:textAllCaps="false"
             android:fontFamily="sans-serif-medium"
-            android:stateListAnimator="@null" />
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            app:backgroundTint="@color/color_bg_white"
+            app:cornerRadius="14dp"
+            app:rippleColor="@color/color_ripple"
+            app:strokeWidth="1dp"
+            app:strokeColor="@color/color_chip_border"
+            app:elevation="0dp" />
 
         <!-- Confirm Button (Primary - can be destructive red) -->
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/confirm_button"
             android:layout_width="0dp"
             android:layout_height="52dp"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:background="@drawable/bg_button_primary_black"
-            android:backgroundTint="@android:color/transparent"
             android:text="@string/common_confirm"
             android:textColor="@android:color/white"
             android:textSize="16sp"
             android:textAllCaps="false"
             android:fontFamily="sans-serif-medium"
-            android:stateListAnimator="@null" />
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            app:backgroundTint="@color/color_text_primary"
+            app:cornerRadius="14dp"
+            app:rippleColor="#33FFFFFF"
+            app:strokeWidth="0dp"
+            app:elevation="0dp" />
 
     </LinearLayout>
 
