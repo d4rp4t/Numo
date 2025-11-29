@@ -19,7 +19,7 @@ class PaymentsHistoryAdapter : RecyclerView.Adapter<PaymentsHistoryAdapter.ViewH
     }
 
     private val entries: MutableList<PaymentHistoryEntry> = mutableListOf()
-    private val dateFormat = SimpleDateFormat("MMM d", Locale.getDefault())
+    private val dateFormat = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
     private var onItemClickListener: OnItemClickListener? = null
 
     fun setOnItemClickListener(listener: OnItemClickListener) {
