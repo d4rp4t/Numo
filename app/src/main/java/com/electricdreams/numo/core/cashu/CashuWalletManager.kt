@@ -237,9 +237,26 @@ object CashuWalletManager : MintManager.MintChangeListener {
             info.description?.let { json.put("description", it) }
             info.descriptionLong?.let { json.put("descriptionLong", it) }
             info.pubkey?.let { json.put("pubkey", it) }
-            info.version?.toString()?.let { json.put("version", it) }
+            // Store version as object with name and version fields
+            info.version?.let { version ->
+                val versionObj = org.json.JSONObject()
+                versionObj.put("name", version.name)
+                versionObj.put("version", version.version)
+                json.put("version", versionObj)
+            }
             info.motd?.let { json.put("motd", it) }
             info.iconUrl?.let { json.put("iconUrl", it) }
+            // Store contact info as array
+            info.contact?.let { contacts ->
+                val contactArray = org.json.JSONArray()
+                for (contact in contacts) {
+                    val contactObj = org.json.JSONObject()
+                    contactObj.put("method", contact.method)
+                    contactObj.put("info", contact.info)
+                    contactArray.put(contactObj)
+                }
+                json.put("contact", contactArray)
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Error converting mint info to JSON", e)
         }
@@ -253,13 +270,44 @@ object CashuWalletManager : MintManager.MintChangeListener {
     fun mintInfoFromJson(jsonString: String): CachedMintInfo? {
         return try {
             val json = org.json.JSONObject(jsonString)
+            
+            // Parse version object
+            val versionInfo = if (json.has("version") && !json.isNull("version")) {
+                try {
+                    val versionObj = json.getJSONObject("version")
+                    CachedVersionInfo(
+                        name = if (versionObj.has("name") && !versionObj.isNull("name")) versionObj.getString("name") else null,
+                        version = if (versionObj.has("version") && !versionObj.isNull("version")) versionObj.getString("version") else null
+                    )
+                } catch (e: Exception) {
+                    // Legacy: version stored as string
+                    null
+                }
+            } else null
+            
+            // Parse contact array
+            val contacts = if (json.has("contact") && !json.isNull("contact")) {
+                try {
+                    val contactArray = json.getJSONArray("contact")
+                    (0 until contactArray.length()).mapNotNull { i ->
+                        val contactObj = contactArray.getJSONObject(i)
+                        val method = if (contactObj.has("method")) contactObj.getString("method") else null
+                        val info = if (contactObj.has("info")) contactObj.getString("info") else null
+                        if (method != null && info != null) CachedContactInfo(method, info) else null
+                    }
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            } else emptyList()
+            
             CachedMintInfo(
                 name = if (json.has("name") && !json.isNull("name")) json.getString("name") else null,
                 description = if (json.has("description") && !json.isNull("description")) json.getString("description") else null,
                 descriptionLong = if (json.has("descriptionLong") && !json.isNull("descriptionLong")) json.getString("descriptionLong") else null,
-                version = if (json.has("version") && !json.isNull("version")) json.getString("version") else null,
+                versionInfo = versionInfo,
                 motd = if (json.has("motd") && !json.isNull("motd")) json.getString("motd") else null,
-                iconUrl = if (json.has("iconUrl") && !json.isNull("iconUrl")) json.getString("iconUrl") else null
+                iconUrl = if (json.has("iconUrl") && !json.isNull("iconUrl")) json.getString("iconUrl") else null,
+                contact = contacts
             )
         } catch (e: Exception) {
             Log.w(TAG, "Error parsing cached mint info", e)
@@ -268,15 +316,32 @@ object CashuWalletManager : MintManager.MintChangeListener {
     }
 
     /**
+     * Simple data class to hold cached version info.
+     */
+    data class CachedVersionInfo(
+        val name: String?,
+        val version: String?
+    )
+
+    /**
+     * Simple data class to hold cached contact info.
+     */
+    data class CachedContactInfo(
+        val method: String,
+        val info: String
+    )
+
+    /**
      * Simple data class to hold cached mint info.
      */
     data class CachedMintInfo(
         val name: String?,
         val description: String?,
         val descriptionLong: String?,
-        val version: String?,
+        val versionInfo: CachedVersionInfo?,
         val motd: String?,
-        val iconUrl: String?
+        val iconUrl: String?,
+        val contact: List<CachedContactInfo> = emptyList()
     )
 
     /**

@@ -109,21 +109,24 @@
                             android:orientation="horizontal"
                             android:gravity="center_vertical">
 
-                            <!-- Icon Container -->
+                            <!-- Icon Container (circular avatar) -->
                             <FrameLayout
                                 android:id="@+id/lightning_icon_container"
                                 android:layout_width="52dp"
                                 android:layout_height="52dp"
-                                android:layout_marginEnd="16dp"
-                                android:background="@drawable/bg_circle"
-                                android:backgroundTint="@color/color_bg_tertiary">
+                                android:layout_marginEnd="16dp">
 
-                                <ImageView
+                                <com.google.android.material.imageview.ShapeableImageView
                                     android:id="@+id/lightning_mint_icon"
-                                    android:layout_width="28dp"
-                                    android:layout_height="28dp"
+                                    android:layout_width="52dp"
+                                    android:layout_height="52dp"
                                     android:layout_gravity="center"
+                                    android:scaleType="centerCrop"
+                                    android:background="@color/color_bg_tertiary"
                                     android:src="@drawable/ic_bitcoin"
+                                    app:shapeAppearanceOverlay="@style/ShapeAppearance.Circle"
+                                    app:strokeColor="@color/color_bg_white"
+                                    app:strokeWidth="2dp"
                                     android:contentDescription="@string/cd_mint_icon" />
 
                             </FrameLayout>

@@ -275,10 +275,81 @@ class MintDetailsActivity : AppCompatActivity() {
             motdText.text = info.motd
         }
 
-        if (!info.version.isNullOrBlank()) {
+        // Version from cached structured data
+        val versionInfo = info.versionInfo
+        if (versionInfo != null && (!versionInfo.name.isNullOrBlank() || !versionInfo.version.isNullOrBlank())) {
             versionRow.visibility = View.VISIBLE
-            versionSoftware.text = info.version
-            versionNumber.visibility = View.GONE
+            if (!versionInfo.name.isNullOrBlank()) {
+                versionSoftware.visibility = View.VISIBLE
+                versionSoftware.text = getString(R.string.mint_details_software_value, versionInfo.name)
+            } else {
+                versionSoftware.visibility = View.GONE
+            }
+            if (!versionInfo.version.isNullOrBlank()) {
+                versionNumber.visibility = View.VISIBLE
+                versionNumber.text = getString(R.string.mint_details_version_value, versionInfo.version)
+            } else {
+                versionNumber.visibility = View.GONE
+            }
+        }
+        
+        // Contact info from cached data
+        displayContactInfo(info.contact)
+    }
+    
+    private fun displayContactInfo(contacts: List<CashuWalletManager.CachedContactInfo>) {
+        if (contacts.isEmpty()) {
+            contactSection.visibility = View.GONE
+            return
+        }
+        
+        contactSection.visibility = View.VISIBLE
+        contactContainer.removeAllViews()
+        
+        contacts.forEachIndexed { index, contact ->
+            val contactView = layoutInflater.inflate(R.layout.item_mint_contact, contactContainer, false)
+            
+            val iconView = contactView.findViewById<ImageView>(R.id.contact_icon)
+            val methodView = contactView.findViewById<TextView>(R.id.contact_method)
+            val infoView = contactView.findViewById<TextView>(R.id.contact_info)
+            val copyButton = contactView.findViewById<ImageView>(R.id.copy_button)
+            
+            // Set icon based on method
+            val iconRes = when (contact.method.lowercase()) {
+                "nostr" -> R.drawable.ic_contact_nostr
+                "email" -> R.drawable.ic_contact_email
+                "twitter", "x" -> R.drawable.ic_contact_twitter
+                "telegram" -> R.drawable.ic_contact_telegram
+                else -> R.drawable.ic_link
+            }
+            iconView.setImageResource(iconRes)
+            
+            // Set method label
+            methodView.text = contact.method.uppercase()
+            
+            // Set info text
+            infoView.text = contact.info
+            
+            // Copy button
+            copyButton.setOnClickListener {
+                copyToClipboard(contact.info)
+            }
+            
+            contactContainer.addView(contactView)
+            
+            // Add divider if not last item
+            if (index < contacts.size - 1) {
+                val divider = View(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        resources.getDimensionPixelSize(R.dimen.divider_height)
+                    ).apply {
+                        marginStart = resources.getDimensionPixelSize(R.dimen.contact_divider_margin)
+                    }
+                    setBackgroundColor(getColor(R.color.color_divider))
+                }
+                contactContainer.addView(divider)
+            }
         }
     }
 
@@ -351,13 +422,27 @@ class MintDetailsActivity : AppCompatActivity() {
 
         if (!versionName.isNullOrBlank() || !versionNumberValue.isNullOrBlank()) {
             versionRow.visibility = View.VISIBLE
-            versionSoftware.text = versionName?.let { getString(R.string.mint_details_software_value, it) }
-                ?: getString(R.string.mint_details_software_unknown)
-            versionNumber.text = versionNumberValue?.let { getString(R.string.mint_details_version_value, it) }
-                ?: getString(R.string.mint_details_version_unknown)
+            if (!versionName.isNullOrBlank()) {
+                versionSoftware.visibility = View.VISIBLE
+                versionSoftware.text = getString(R.string.mint_details_software_value, versionName)
+            } else {
+                versionSoftware.visibility = View.GONE
+            }
+            if (!versionNumberValue.isNullOrBlank()) {
+                versionNumber.visibility = View.VISIBLE
+                versionNumber.text = getString(R.string.mint_details_version_value, versionNumberValue)
+            } else {
+                versionNumber.visibility = View.GONE
+            }
         } else {
             versionRow.visibility = View.GONE
         }
+        
+        // Contact info from live MintInfo
+        val contacts = info.contact?.map { 
+            CashuWalletManager.CachedContactInfo(it.method, it.info) 
+        } ?: emptyList()
+        displayContactInfo(contacts)
     }
 
 

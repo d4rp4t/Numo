@@ -11,6 +11,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.google.android.material.imageview.ShapeableImageView
 import com.electricdreams.numo.R
 import com.electricdreams.numo.core.model.Amount
 import com.electricdreams.numo.core.util.MintIconCache

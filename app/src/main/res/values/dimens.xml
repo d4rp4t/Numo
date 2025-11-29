@@ -80,4 +80,5 @@
     <dimen name="card_elevation_3d_max">12dp</dimen>
     <dimen name="card_elevation_3d_min">2dp</dimen>
     <dimen name="card_stroke_selected">2dp</dimen>
+    <dimen name="contact_divider_margin">52dp</dimen>
 </resources>
