@@ -3,6 +3,7 @@ package com.electricdreams.numo.feature.autowithdraw
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
+import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -21,11 +22,18 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.electricdreams.numo.R
+import com.electricdreams.numo.core.cashu.CashuWalletManager
 import com.electricdreams.numo.core.model.Amount
+import com.electricdreams.numo.core.util.MintManager
+import com.electricdreams.numo.feature.settings.WithdrawLightningActivity
 import com.google.android.material.slider.Slider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -63,6 +71,12 @@ class AutoWithdrawSettingsActivity : AppCompatActivity() {
     private lateinit var historyRecyclerView: RecyclerView
     private lateinit var seeAllButton: TextView
 
+    // Manual withdraw
+    private lateinit var manualWithdrawRow: LinearLayout
+    
+    // Manager for mint info
+    private lateinit var mintManager: MintManager
+
     private var isUpdatingUI = false
     private var iconAnimator: ObjectAnimator? = null
     
@@ -75,6 +89,7 @@ class AutoWithdrawSettingsActivity : AppCompatActivity() {
 
         settingsManager = AutoWithdrawSettingsManager.getInstance(this)
         autoWithdrawManager = AutoWithdrawManager.getInstance(this)
+        mintManager = MintManager.getInstance(this)
 
         initViews()
         setupListeners()
@@ -113,6 +128,9 @@ class AutoWithdrawSettingsActivity : AppCompatActivity() {
         historyEmptyContainer = findViewById(R.id.history_empty_container)
         historyRecyclerView = findViewById(R.id.history_recycler_view)
         seeAllButton = findViewById(R.id.see_all_button)
+        
+        // Manual withdraw
+        manualWithdrawRow = findViewById(R.id.manual_withdraw_row)
 
         historyRecyclerView.layoutManager = LinearLayoutManager(this)
     }
@@ -160,6 +178,66 @@ class AutoWithdrawSettingsActivity : AppCompatActivity() {
                 slider.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
             }
         }
+        
+        // Manual withdraw row
+        manualWithdrawRow.setOnClickListener {
+            showMintSelectionDialog()
+        }
+    }
+    
+    /**
+     * Show a mint selection bottom sheet for manual withdrawal.
+     * Displays mints with balances, allowing user to select which to withdraw from.
+     */
+    private fun showMintSelectionDialog() {
+        lifecycleScope.launch {
+            // Fetch mint balances
+            val balances = withContext(Dispatchers.IO) {
+                CashuWalletManager.getAllMintBalances()
+            }
+            
+            // Filter mints with positive balance
+            val mintsWithBalance = balances.filter { it.value > 0 }
+            
+            if (mintsWithBalance.isEmpty()) {
+                // No balance to withdraw
+                AlertDialog.Builder(this@AutoWithdrawSettingsActivity, R.style.Theme_Numo_Dialog)
+                    .setTitle(R.string.manual_withdraw_title)
+                    .setMessage(R.string.manual_withdraw_no_balance)
+                    .setPositiveButton(R.string.common_ok, null)
+                    .show()
+                return@launch
+            }
+            
+            // Build list of mint options with display names and balances
+            val mintOptions = mintsWithBalance.map { (mintUrl, balance) ->
+                val displayName = mintManager.getMintDisplayName(mintUrl)
+                val amountStr = Amount(balance, Amount.Currency.BTC).toString()
+                "$displayName ($amountStr)" to Pair(mintUrl, balance)
+            }
+            
+            val displayNames = mintOptions.map { it.first }.toTypedArray()
+            
+            AlertDialog.Builder(this@AutoWithdrawSettingsActivity, R.style.Theme_Numo_Dialog)
+                .setTitle(R.string.manual_withdraw_select_mint)
+                .setItems(displayNames) { _, which ->
+                    val (mintUrl, balance) = mintOptions[which].second
+                    openWithdrawScreen(mintUrl, balance)
+                }
+                .setNegativeButton(R.string.common_cancel, null)
+                .show()
+        }
+    }
+    
+    /**
+     * Open the withdraw screen for the selected mint
+     */
+    private fun openWithdrawScreen(mintUrl: String, balance: Long) {
+        val intent = Intent(this, WithdrawLightningActivity::class.java).apply {
+            putExtra("mint_url", mintUrl)
+            putExtra("balance", balance)
+        }
+        startActivity(intent)
     }
     
     private fun showThresholdEditDialog() {
@@ -340,6 +418,9 @@ class AutoWithdrawSettingsActivity : AppCompatActivity() {
         val toggleCard: CardView = findViewById(R.id.toggle_card)
         animateCardEntrance(toggleCard, 100)
         
+        val manualWithdrawCard: CardView = findViewById(R.id.manual_withdraw_card)
+        animateCardEntrance(manualWithdrawCard, 200)
+        
         // If auto-withdraw is enabled, start icon animation
         if (settingsManager.isGloballyEnabled()) {
             heroIconContainer.postDelayed({ startIconPulseAnimation() }, 800)
@@ -356,6 +437,12 @@ class AutoWithdrawSettingsActivity : AppCompatActivity() {
             .setDuration(350)
             .setInterpolator(AccelerateDecelerateInterpolator())
             .start()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh history when returning to activity (e.g., after completing a withdrawal)
+        loadHistory()
     }
 
     override fun onDestroy() {

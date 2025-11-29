@@ -682,4 +682,14 @@
     <string name="settings_item_withdrawals_title">Withdrawals</string>
     <string name="settings_item_withdrawals_subtitle">Auto-withdraw settings and history</string>
 
+    <!-- Manual Withdraw -->
+    <string name="manual_withdraw_section_title">Manual Withdraw</string>
+    <string name="manual_withdraw_title">Withdraw Now</string>
+    <string name="manual_withdraw_subtitle">Send funds to Lightning invoice or address</string>
+    <string name="manual_withdraw_select_mint">Select Mint</string>
+    <string name="manual_withdraw_no_balance">No balance available to withdraw. Add funds to your wallet first.</string>
+
+    <!-- Mints Settings Additional -->
+    <string name="mints_settings_balance_label">Balance</string>
+
 </resources>

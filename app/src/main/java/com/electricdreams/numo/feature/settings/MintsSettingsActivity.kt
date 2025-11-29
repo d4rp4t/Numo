@@ -26,8 +26,7 @@ import java.net.URL
 
 class MintsSettingsActivity : AppCompatActivity(), 
     MintsAdapter.MintRemoveListener,
-    MintsAdapter.LightningMintSelectedListener,
-    MintsAdapter.WithdrawListener {
+    MintsAdapter.LightningMintSelectedListener {
 
     companion object {
         private const val TAG = "MintsSettingsActivity"
@@ -65,8 +64,7 @@ class MintsSettingsActivity : AppCompatActivity(),
             mintManager.getAllowedMints(), 
             this,
             this,
-            mintManager.getPreferredLightningMint(),
-            this
+            mintManager.getPreferredLightningMint()
         )
         mintsRecyclerView.adapter = mintsAdapter
         
@@ -267,13 +265,6 @@ class MintsSettingsActivity : AppCompatActivity(),
                 Toast.LENGTH_SHORT
             ).show()
         }
-    }
-
-    override fun onWithdrawClicked(mintUrl: String, balance: Long) {
-        val intent = android.content.Intent(this, com.electricdreams.numo.feature.settings.WithdrawLightningActivity::class.java)
-        intent.putExtra("mint_url", mintUrl)
-        intent.putExtra("balance", balance)
-        startActivity(intent)
     }
 
     /**

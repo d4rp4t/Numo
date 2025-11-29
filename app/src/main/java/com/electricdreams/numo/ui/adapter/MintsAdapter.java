@@ -7,7 +7,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
@@ -40,7 +39,6 @@ public class MintsAdapter extends RecyclerView.Adapter<MintsAdapter.MintViewHold
     private List<String> mints;
     private final MintRemoveListener removeListener;
     private final LightningMintSelectedListener lightningListener;
-    private final WithdrawListener withdrawListener;
     private String preferredLightningMint;
     private Map<String, Long> mintBalances = new HashMap<>();
     private Map<String, Boolean> loadingStates = new HashMap<>();
@@ -60,13 +58,6 @@ public class MintsAdapter extends RecyclerView.Adapter<MintsAdapter.MintViewHold
         void onLightningMintSelected(String mintUrl);
     }
     
-    /**
-     * Interface for handling withdraw button clicks
-     */
-    public interface WithdrawListener {
-        void onWithdrawClicked(String mintUrl, long balance);
-    }
-    
     public MintsAdapter(Context context, List<String> mints, MintRemoveListener listener) {
         this(context, mints, listener, null, null);
     }
@@ -74,17 +65,9 @@ public class MintsAdapter extends RecyclerView.Adapter<MintsAdapter.MintViewHold
     public MintsAdapter(Context context, List<String> mints, MintRemoveListener removeListener, 
                        @Nullable LightningMintSelectedListener lightningListener,
                        @Nullable String preferredLightningMint) {
-        this(context, mints, removeListener, lightningListener, preferredLightningMint, null);
-    }
-    
-    public MintsAdapter(Context context, List<String> mints, MintRemoveListener removeListener, 
-                       @Nullable LightningMintSelectedListener lightningListener,
-                       @Nullable String preferredLightningMint,
-                       @Nullable WithdrawListener withdrawListener) {
         this.mints = mints;
         this.removeListener = removeListener;
         this.lightningListener = lightningListener;
-        this.withdrawListener = withdrawListener;
         this.preferredLightningMint = preferredLightningMint;
         this.mintManager = MintManager.getInstance(context);
         
@@ -210,7 +193,6 @@ public class MintsAdapter extends RecyclerView.Adapter<MintsAdapter.MintViewHold
         private final ProgressBar balanceLoading;
         private final ImageButton removeButton;
         private final RadioButton lightningRadio;
-        private final View withdrawButton;
         
         public MintViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -221,7 +203,6 @@ public class MintsAdapter extends RecyclerView.Adapter<MintsAdapter.MintViewHold
             balanceLoading = itemView.findViewById(R.id.balance_loading);
             removeButton = itemView.findViewById(R.id.remove_mint_button);
             lightningRadio = itemView.findViewById(R.id.lightning_mint_radio);
-            withdrawButton = itemView.findViewById(R.id.withdraw_button);
         }
         
         public void bind(String mintUrl) {
@@ -278,23 +259,6 @@ public class MintsAdapter extends RecyclerView.Adapter<MintsAdapter.MintViewHold
                     .setNegativeButton(R.string.common_cancel, null)
                     .show();
             });
-            
-            // Set up withdraw button
-            Long balance = mintBalances.get(mintUrl);
-            long balanceValue = balance != null ? balance : 0L;
-            
-            if (withdrawButton != null) {
-                withdrawButton.setOnClickListener(v -> {
-                    if (withdrawListener != null) {
-                        withdrawListener.onWithdrawClicked(mintUrl, balanceValue);
-                    }
-                });
-                
-                // Hide withdraw button if balance is 0 or loading
-                Boolean isCurrentlyLoading = loadingStates.get(mintUrl);
-                boolean shouldShow = balanceValue > 0 && (isCurrentlyLoading == null || !isCurrentlyLoading);
-                withdrawButton.setVisibility(shouldShow ? View.VISIBLE : View.GONE);
-            }
         }
         
         /**

@@ -134,12 +134,13 @@
             android:orientation="horizontal"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/divider">
+            app:layout_constraintTop_toBottomOf="@id/divider"
+            app:layout_constraintBottom_toBottomOf="parent">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Balance"
+                android:text="@string/mints_settings_balance_label"
                 android:textColor="@color/color_text_secondary"
                 android:textSize="14sp" />
 
@@ -167,24 +168,6 @@
                 tools:text="₿21,000" />
 
         </LinearLayout>
-
-        <!-- Withdraw button - left aligned -->
-        <Button
-            android:id="@+id/withdraw_button"
-            style="@style/Widget.Button.Secondary.Outlined"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:minHeight="40dp"
-            android:paddingHorizontal="16dp"
-            android:text="Withdraw from mint"
-            android:textSize="14sp"
-            android:visibility="gone"
-            app:cornerRadius="8dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/balance_container"
-            tools:visibility="visible" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
