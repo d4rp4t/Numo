@@ -114,6 +114,5 @@
         android:textAllCaps="false"
         android:fontFamily="sans-serif-medium"
         android:stateListAnimator="@null" />
-        android:stateListAnimator="@null" />
 
 </LinearLayout>
