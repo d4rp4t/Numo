@@ -13,6 +13,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.electricdreams.numo.feature.enableEdgeToEdgeWithPill
 import com.electricdreams.numo.PaymentRequestActivity
 import com.electricdreams.numo.R
 import com.electricdreams.numo.core.data.model.PaymentHistoryEntry
@@ -30,6 +31,9 @@ class PaymentsHistoryActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_history)
+
+        // Let history content run behind the gesture nav pill for a modern look
+        enableEdgeToEdgeWithPill(this, lightNavIcons = true)
 
         // Setup Back Button
         val backButton: View? = findViewById(R.id.back_button)

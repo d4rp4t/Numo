@@ -12,6 +12,7 @@ import com.electricdreams.numo.core.model.Amount
 import com.electricdreams.numo.core.model.CheckoutBasket
 import com.electricdreams.numo.core.model.CheckoutBasketItem
 import com.electricdreams.numo.core.util.ReceiptPrinter
+import com.electricdreams.numo.feature.enableEdgeToEdgeWithPill
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -69,6 +70,9 @@ class BasketReceiptActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_basket_receipt)
+
+        // Edge-to-edge so the receipt sheet scrolls behind the gesture nav pill
+        enableEdgeToEdgeWithPill(this, lightNavIcons = true)
 
         initializeViews()
         loadBasketData()
