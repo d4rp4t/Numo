@@ -202,6 +202,17 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".feature.settings.SettingsActivity" />
         </activity>
+        
+        <activity android:name="com.electricdreams.numo.feature.settings.MintDetailsActivity"
+            android:exported="false"
+            android:label="@string/mint_details_title"
+            android:theme="@style/Theme.Numo"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:parentActivityName=".feature.settings.MintsSettingsActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".feature.settings.MintsSettingsActivity" />
+        </activity>
         <activity android:name="com.electricdreams.numo.feature.settings.SecuritySettingsActivity"
             android:exported="false"
             android:label="@string/settings_security_title"
@@ -355,6 +366,13 @@
                 android:value=".feature.items.ItemEntryActivity" />
         </activity>
         
+        <!-- Reusable QR Code Scanner -->
+        <activity android:name="com.electricdreams.numo.feature.scanner.QRScannerActivity"
+            android:exported="false"
+            android:label="@string/qr_scanner_title"
+            android:theme="@style/Theme.Numo.Fullscreen"
+            android:screenOrientation="portrait" />
+        
         <activity android:name="com.electricdreams.numo.feature.items.ItemListActivity"
             android:exported="false"
             android:label="Items"
@@ -435,6 +453,17 @@
         <activity android:name="com.electricdreams.numo.feature.baskets.BasketNamesSettingsActivity"
             android:exported="false"
             android:label="@string/basket_names_settings_title"
+            android:theme="@style/Theme.Numo"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:parentActivityName=".feature.settings.SettingsActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".feature.settings.SettingsActivity" />
+        </activity>
+        
+        <activity android:name="com.electricdreams.numo.feature.autowithdraw.AutoWithdrawSettingsActivity"
+            android:exported="false"
+            android:label="@string/auto_withdraw_title"
             android:theme="@style/Theme.Numo"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:parentActivityName=".feature.settings.SettingsActivity">

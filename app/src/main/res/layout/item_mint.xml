@@ -22,13 +22,16 @@
             android:id="@+id/mint_icon"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:background="@color/color_bg_surface"
+            android:layout_marginEnd="0dp"
             android:contentDescription="Mint icon"
+            android:importantForAccessibility="no"
             android:scaleType="centerCrop"
             android:src="@drawable/ic_bitcoin"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:shapeAppearanceOverlay="@style/ShapeAppearance.Circle" />
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Circle"
+            app:strokeColor="@color/color_bg_white"
+            app:strokeWidth="1dp" />
 
         <!-- Content container - all text aligned to right of icon -->
         <LinearLayout
@@ -134,12 +137,13 @@
             android:orientation="horizontal"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/divider">
+            app:layout_constraintTop_toBottomOf="@id/divider"
+            app:layout_constraintBottom_toBottomOf="parent">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Balance"
+                android:text="@string/mints_settings_balance_label"
                 android:textColor="@color/color_text_secondary"
                 android:textSize="14sp" />
 
@@ -167,24 +171,6 @@
                 tools:text="₿21,000" />
 
         </LinearLayout>
-
-        <!-- Withdraw button - left aligned -->
-        <Button
-            android:id="@+id/withdraw_button"
-            style="@style/Widget.Button.Secondary.Outlined"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:minHeight="40dp"
-            android:paddingHorizontal="16dp"
-            android:text="Withdraw from mint"
-            android:textSize="14sp"
-            android:visibility="gone"
-            app:cornerRadius="8dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/balance_container"
-            tools:visibility="visible" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -13,10 +13,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.electricdreams.numo.R
 import com.electricdreams.numo.core.cashu.CashuWalletManager
-import com.electricdreams.numo.core.data.model.PaymentHistoryEntry
-import com.electricdreams.numo.feature.history.PaymentsHistoryActivity
 import com.electricdreams.numo.core.model.Amount
 import com.electricdreams.numo.core.util.MintManager
+import com.electricdreams.numo.feature.autowithdraw.AutoWithdrawManager
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -136,7 +135,8 @@ class WithdrawMeltQuoteActivity : AppCompatActivity() {
         setLoading(true)
 
         lifecycleScope.launch {
-            var historyEntryId: String? = null
+            var withdrawEntryId: String? = null
+            val autoWithdrawManager = AutoWithdrawManager.getInstance(this@WithdrawMeltQuoteActivity)
             
             try {
                 val wallet = CashuWalletManager.getWallet()
@@ -152,28 +152,25 @@ class WithdrawMeltQuoteActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                // Create pending transaction history entry
-                val historyEntry = PaymentHistoryEntry(
-                    token = "",
-                    amount = amount,
-                    date = Date(),
-                    rawUnit = "sat",
-                    rawEntryUnit = "sat",
-                    enteredAmount = amount,
-                    bitcoinPrice = null,
-                    mintUrl = mintUrl,
-                    paymentRequest = null,
-                    rawStatus = PaymentHistoryEntry.STATUS_PENDING,
-                    paymentType = PaymentHistoryEntry.TYPE_LIGHTNING,
-                    lightningInvoice = request,
-                    lightningQuoteId = quoteId,
-                    lightningMintUrl = mintUrl
-                )
-
-                withContext(Dispatchers.Main) {
-                    addEntryToHistory(historyEntry)
-                    historyEntryId = historyEntry.id
+                // Create unified withdrawal history entry (manual withdrawal)
+                val destinationLabel = lightningAddress ?: request
+                val destinationType = when {
+                    !lightningAddress.isNullOrBlank() -> "manual_address"
+                    !request.isBlank() -> "manual_invoice"
+                    else -> "manual_unknown"
                 }
+
+                val historyEntry = autoWithdrawManager.addManualWithdrawalEntry(
+                    mintUrl = mintUrl,
+                    amountSats = amount,
+                    feeSats = feeReserve,
+                    destination = destinationLabel ?: "",
+                    destinationType = destinationType,
+                    status = com.electricdreams.numo.feature.autowithdraw.WithdrawHistoryEntry.STATUS_PENDING,
+                    quoteId = quoteId,
+                    errorMessage = null
+                )
+                withdrawEntryId = historyEntry.id
 
                 // Execute melt operation
                 val melted = withContext(Dispatchers.IO) {
@@ -196,19 +193,24 @@ class WithdrawMeltQuoteActivity : AppCompatActivity() {
 
                     when (meltQuote.state) {
                         QuoteState.PAID  -> {
-                            // Update history entry to completed
-                            val updatedEntry = historyEntry.copy(
-                                rawStatus = PaymentHistoryEntry.STATUS_COMPLETED
-                            )
-                            updateEntryInHistory(updatedEntry)
-
+                            // Update withdrawal entry to completed
+                            withdrawEntryId?.let {
+                                autoWithdrawManager.updateWithdrawalStatus(
+                                    id = it,
+                                    status = com.electricdreams.numo.feature.autowithdraw.WithdrawHistoryEntry.STATUS_COMPLETED
+                                )
+                            }
                             // Show success activity
                             showPaymentSuccess()
                         }
                         QuoteState.UNPAID -> {
-                            // Remove from history
-                            historyEntryId?.let {
-                                removeEntryFromHistory(it)
+                            // Mark as failed and show error
+                            withdrawEntryId?.let {
+                                autoWithdrawManager.updateWithdrawalStatus(
+                                    id = it,
+                                    status = com.electricdreams.numo.feature.autowithdraw.WithdrawHistoryEntry.STATUS_FAILED,
+                                    errorMessage = getString(R.string.withdraw_melt_error_invoice_not_paid)
+                                )
                             }
                             showPaymentError(
                                 getString(R.string.withdraw_melt_error_invoice_not_paid)
@@ -221,9 +223,13 @@ class WithdrawMeltQuoteActivity : AppCompatActivity() {
                             )
                         }
                         else -> {
-                            // Remove from history
-                            historyEntryId?.let {
-                                removeEntryFromHistory(it)
+                            // Mark as failed
+                            withdrawEntryId?.let {
+                                autoWithdrawManager.updateWithdrawalStatus(
+                                    id = it,
+                                    status = com.electricdreams.numo.feature.autowithdraw.WithdrawHistoryEntry.STATUS_FAILED,
+                                    errorMessage = getString(R.string.withdraw_melt_error_unknown_state)
+                                )
                             }
                             showPaymentError(
                                 getString(R.string.withdraw_melt_error_unknown_state)
@@ -235,12 +241,16 @@ class WithdrawMeltQuoteActivity : AppCompatActivity() {
                 Log.e(TAG, "Error executing melt", e)
                 withContext(Dispatchers.Main) {
                     setLoading(false)
-                    
-                    // Remove from history on error
-                    historyEntryId?.let {
-                        removeEntryFromHistory(it)
+
+                    // Mark as failed on error
+                    withdrawEntryId?.let { id ->
+                        autoWithdrawManager.updateWithdrawalStatus(
+                            id = id,
+                            status = com.electricdreams.numo.feature.autowithdraw.WithdrawHistoryEntry.STATUS_FAILED,
+                            errorMessage = e.message
+                        )
                     }
-                    
+
                     showPaymentError(
                         getString(
                             R.string.withdraw_melt_error_generic,
@@ -250,32 +260,6 @@ class WithdrawMeltQuoteActivity : AppCompatActivity() {
                 }
             }
         }
-    }
-
-    private fun addEntryToHistory(entry: PaymentHistoryEntry) {
-        val history = PaymentsHistoryActivity.getPaymentHistory(this).toMutableList()
-        history.add(entry)
-        saveHistory(history)
-    }
-
-    private fun updateEntryInHistory(entry: PaymentHistoryEntry) {
-        val history = PaymentsHistoryActivity.getPaymentHistory(this).toMutableList()
-        val index = history.indexOfFirst { it.id == entry.id }
-        if (index >= 0) {
-            history[index] = entry
-            saveHistory(history)
-        }
-    }
-
-    private fun removeEntryFromHistory(entryId: String) {
-        val history = PaymentsHistoryActivity.getPaymentHistory(this).toMutableList()
-        history.removeAll { it.id == entryId }
-        saveHistory(history)
-    }
-
-    private fun saveHistory(history: List<PaymentHistoryEntry>) {
-        val prefs = getSharedPreferences("PaymentHistory", MODE_PRIVATE)
-        prefs.edit().putString("history", Gson().toJson(history)).apply()
     }
 
     private fun showPaymentSuccess() {

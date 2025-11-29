@@ -54,10 +54,15 @@
     <!-- Elevation -->
     <dimen name="elevation_card">2dp</dimen>
     <dimen name="elevation_dialog">8dp</dimen>
+    <dimen name="card_elevation_small">2dp</dimen>
+    
+    <!-- Card Corner Radius -->
+    <dimen name="card_corner_radius">16dp</dimen>
 
     <!-- Divider -->
     <dimen name="divider_height">0.5dp</dimen>
     <dimen name="divider_height_thick">1dp</dimen>
+    <dimen name="mint_item_divider_margin">78dp</dimen>
 
     <!-- Bottom Sheet -->
     <dimen name="bottom_sheet_handle_width">36dp</dimen>
@@ -67,4 +72,13 @@
     <dimen name="settings_item_height">56dp</dimen>
     <dimen name="settings_horizontal_padding">24dp</dimen>
     <dimen name="icon_button_size">44dp</dimen>
+
+    <!-- QR Scanner -->
+    <dimen name="qr_viewfinder_size">280dp</dimen>
+
+    <!-- 3D Card Effects -->
+    <dimen name="card_elevation_3d_max">12dp</dimen>
+    <dimen name="card_elevation_3d_min">2dp</dimen>
+    <dimen name="card_stroke_selected">2dp</dimen>
+    <dimen name="contact_divider_margin">52dp</dimen>
 </resources>

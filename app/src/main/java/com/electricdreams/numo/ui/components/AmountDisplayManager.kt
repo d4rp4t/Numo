@@ -146,7 +146,8 @@ class AmountDisplayManager(
 
         // Update submit button
         if (satsValue > 0) {
-            submitButton.text = context.getString(R.string.pos_charge_button_with_amount, amountDisplayText)
+            // Always show a simple, localized "Charge" label without the amount
+            submitButton.text = context.getString(R.string.pos_charge_button)
             submitButton.isEnabled = true
             requestedAmount = satsValue
         } else {

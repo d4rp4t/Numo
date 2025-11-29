@@ -4,9 +4,9 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.electricdreams.numo.R
+import com.electricdreams.numo.ui.util.DialogHelper
 import com.electricdreams.numo.feature.onboarding.OnboardingActivity
 
 class DeveloperSettingsActivity : AppCompatActivity() {
@@ -23,20 +23,25 @@ class DeveloperSettingsActivity : AppCompatActivity() {
     }
 
     private fun showRestartOnboardingDialog() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.developer_settings_restart_dialog_title)
-            .setMessage(R.string.developer_settings_restart_dialog_message)
-            .setPositiveButton(R.string.developer_settings_restart_dialog_positive) { _, _ ->
-                // Clear onboarding completion status
-                OnboardingActivity.setOnboardingComplete(this, false)
-                
-                // Navigate to onboarding
-                val intent = Intent(this, OnboardingActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                startActivity(intent)
-                finish()
-            }
-            .setNegativeButton(R.string.common_cancel, null)
-            .show()
+        DialogHelper.showConfirmation(
+            context = this,
+            config = DialogHelper.ConfirmationConfig(
+                title = getString(R.string.developer_settings_restart_dialog_title),
+                message = getString(R.string.developer_settings_restart_dialog_message),
+                confirmText = getString(R.string.developer_settings_restart_dialog_positive),
+                cancelText = getString(R.string.common_cancel),
+                isDestructive = false,
+                onConfirm = {
+                    // Clear onboarding completion status
+                    OnboardingActivity.setOnboardingComplete(this, false)
+                    
+                    // Navigate to onboarding
+                    val intent = Intent(this, OnboardingActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish()
+                }
+            )
+        )
     }
 }

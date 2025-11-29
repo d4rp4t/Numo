@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.electricdreams.numo.feature.enableEdgeToEdgeWithPill
 import com.electricdreams.numo.R
 import com.electricdreams.numo.core.data.model.TokenHistoryEntry
 import com.electricdreams.numo.ui.adapter.TokenHistoryAdapter
@@ -26,6 +27,9 @@ class TokenHistoryActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_history)
+
+        // Edge-to-edge so token history list runs behind the nav pill as well
+        enableEdgeToEdgeWithPill(this, lightNavIcons = true)
 
         // Setup toolbar
         val toolbar: Toolbar = findViewById(R.id.toolbar)

@@ -5,9 +5,9 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.electricdreams.numo.R
+import com.electricdreams.numo.ui.util.DialogHelper
 import com.electricdreams.numo.feature.pin.PinEntryActivity
 import com.electricdreams.numo.feature.pin.PinManager
 import com.electricdreams.numo.feature.pin.PinSetupActivity
@@ -149,15 +149,20 @@ class SecuritySettingsActivity : AppCompatActivity() {
     }
 
     private fun confirmRemovePin() {
-        AlertDialog.Builder(this)
-            .setTitle("Remove PIN?")
-            .setMessage("This will disable PIN protection. Anyone with access to this device will be able to access sensitive features like withdrawing funds and viewing your seed phrase.")
-            .setPositiveButton("Remove PIN") { _, _ ->
-                pinManager.removePin()
-                updatePinUI()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        DialogHelper.showConfirmation(
+            context = this,
+            config = DialogHelper.ConfirmationConfig(
+                title = "Remove PIN?",
+                message = "This will disable PIN protection. Anyone with access to this device will be able to access sensitive features like withdrawing funds and viewing your seed phrase.",
+                confirmText = "Remove PIN",
+                cancelText = "Cancel",
+                isDestructive = true,
+                onConfirm = {
+                    pinManager.removePin()
+                    updatePinUI()
+                }
+            )
+        )
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

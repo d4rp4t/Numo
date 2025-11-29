@@ -14,12 +14,12 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.gridlayout.widget.GridLayout
 import com.electricdreams.numo.R
 import com.electricdreams.numo.core.cashu.CashuWalletManager
+import com.electricdreams.numo.ui.util.DialogHelper
 import com.google.android.material.button.MaterialButton
 
 /**
@@ -234,14 +234,17 @@ class PinResetActivity : AppCompatActivity() {
     }
 
     private fun showResetConfirmation() {
-        AlertDialog.Builder(this)
-            .setTitle("Reset PIN?")
-            .setMessage("This will remove your current PIN. You can set a new one afterwards.")
-            .setPositiveButton("Reset") { _, _ ->
-                performReset()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        DialogHelper.showConfirmation(
+            context = this,
+            config = DialogHelper.ConfirmationConfig(
+                title = "Reset PIN?",
+                message = "This will remove your current PIN. You can set a new one afterwards.",
+                confirmText = "Reset",
+                cancelText = "Cancel",
+                isDestructive = true,
+                onConfirm = { performReset() }
+            )
+        )
     }
 
     private fun performReset() {
@@ -252,20 +255,25 @@ class PinResetActivity : AppCompatActivity() {
         Toast.makeText(this, "PIN removed", Toast.LENGTH_SHORT).show()
 
         // Ask if user wants to set a new PIN
-        AlertDialog.Builder(this)
-            .setTitle("Set New PIN?")
-            .setMessage("Would you like to set a new PIN now?")
-            .setPositiveButton("Set PIN") { _, _ ->
-                val intent = Intent(this, PinSetupActivity::class.java)
-                intent.putExtra(PinSetupActivity.EXTRA_MODE, PinSetupActivity.MODE_CREATE)
-                startActivityForResult(intent, REQUEST_NEW_PIN)
-            }
-            .setNegativeButton("Not Now") { _, _ ->
-                setResult(Activity.RESULT_OK)
-                finish()
-            }
-            .setCancelable(false)
-            .show()
+        DialogHelper.showConfirmation(
+            context = this,
+            config = DialogHelper.ConfirmationConfig(
+                title = "Set New PIN?",
+                message = "Would you like to set a new PIN now?",
+                confirmText = "Set PIN",
+                cancelText = "Not Now",
+                isDestructive = false,
+                onConfirm = {
+                    val intent = Intent(this, PinSetupActivity::class.java)
+                    intent.putExtra(PinSetupActivity.EXTRA_MODE, PinSetupActivity.MODE_CREATE)
+                    startActivityForResult(intent, REQUEST_NEW_PIN)
+                },
+                onCancel = {
+                    setResult(Activity.RESULT_OK)
+                    finish()
+                }
+            )
+        )
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

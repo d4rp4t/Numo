@@ -291,6 +291,7 @@
 
     <!-- Common buttons -->
     <string name="common_ok">OK</string>
+    <string name="common_or">or</string>
 
     <!-- Withdraw - Lightning selection screen -->
     <string name="withdraw_lightning_toolbar_back">Back</string>
@@ -590,6 +591,7 @@
     <!-- Common -->
     <string name="common_save">Save</string>
     <string name="common_delete">Delete</string>
+    <string name="common_confirm">Confirm</string>
 
     <!-- Basket Names Settings -->
     <string name="basket_names_settings_title">Basket Names</string>
@@ -632,4 +634,161 @@
         <item quantity="other">%1$d items</item>
     </plurals>
 
+    <!-- Auto-Withdraw Settings -->
+    <string name="auto_withdraw_title">Withdrawals</string>
+    <string name="auto_withdraw_hero_title">Auto-Withdraw</string>
+    <string name="auto_withdraw_hero_subtitle">Automatically send funds to your Lightning wallet when balance exceeds a threshold</string>
+    <string name="auto_withdraw_status_active">Active</string>
+    <string name="auto_withdraw_status_inactive">Inactive</string>
+    
+    <string name="auto_withdraw_enable_title">Auto-Withdraw</string>
+    <string name="auto_withdraw_enable_subtitle">Automatically withdraw when balance exceeds threshold</string>
+    
+    <string name="auto_withdraw_section_destination">Destination</string>
+    <string name="auto_withdraw_section_trigger">Trigger Settings</string>
+    <string name="auto_withdraw_section_config">CONFIGURATION</string>
+    <string name="auto_withdraw_lightning_address_label">Lightning Address</string>
+    <string name="auto_withdraw_lightning_address_hint">you@wallet.com</string>
+    <string name="auto_withdraw_lightning_address_helper">Funds will be sent to this address automatically</string>
+    
+    <string name="auto_withdraw_threshold_title">Balance Threshold</string>
+    <string name="auto_withdraw_threshold_subtitle">Trigger when balance exceeds</string>
+    <string name="auto_withdraw_threshold_label">Threshold</string>
+    <string name="auto_withdraw_threshold_hint">Trigger withdrawal when balance reaches this amount</string>
+    <string name="auto_withdraw_threshold_helper">Min: ₿1,000 • Max: ₿1,000,000</string>
+    
+    <string name="auto_withdraw_percentage_title">Withdraw Amount</string>
+    <string name="auto_withdraw_percentage_subtitle">Percentage of balance to send</string>
+    <string name="auto_withdraw_percentage_label">Withdraw Percentage</string>
+    <string name="auto_withdraw_percentage_hint">Percentage of balance to withdraw (keep some for fees)</string>
+    
+    <string name="auto_withdraw_section_history">Recent Activity</string>
+    <string name="auto_withdraw_see_all">See All</string>
+    <string name="auto_withdraw_history_empty">No automatic withdrawals yet</string>
+    <string name="auto_withdraw_history_empty_title">No Activity Yet</string>
+    <string name="auto_withdraw_history_empty_subtitle">Withdrawals will appear here</string>
+    
+    <string name="auto_withdraw_status_completed">Sent</string>
+    <string name="auto_withdraw_status_pending">Pending</string>
+    <string name="auto_withdraw_status_failed">Failed</string>
+    
+    <string name="auto_withdraw_progress_started">Auto-withdrawing...</string>
+    <string name="auto_withdraw_progress_quote">Getting quote...</string>
+    <string name="auto_withdraw_progress_sending">Sending to wallet...</string>
+    <string name="auto_withdraw_progress_completed">Sent successfully!</string>
+    <string name="auto_withdraw_progress_failed">Withdrawal failed</string>
+    
+    <string name="auto_withdraw_settings_title">Auto-Withdraw</string>
+    <string name="auto_withdraw_error_title">Error Details</string>
+
+    <!-- Settings - Withdrawals menu item -->
+    <string name="settings_item_withdrawals_title">Withdrawals</string>
+    <string name="settings_item_withdrawals_subtitle">Auto-withdraw settings and history</string>
+
+    <!-- Manual Withdraw -->
+    <string name="manual_withdraw_section_title">Manual Withdraw</string>
+    <string name="manual_withdraw_title">Withdraw Now</string>
+    <string name="manual_withdraw_subtitle">Send funds to Lightning invoice or address</string>
+    <string name="manual_withdraw_select_mint">Select Mint</string>
+    <string name="manual_withdraw_no_balance">No balance available to withdraw. Add funds to your wallet first.</string>
+
+    <!-- Mints Settings Additional -->
+    <string name="mints_settings_balance_label">Balance</string>
+
+    <!-- Mint Selection Bottom Sheet -->
+    <string name="mint_selection_title">Select Mint</string>
+    <string name="mint_selection_subtitle">Choose which mint to withdraw from</string>
+    <string name="mint_selection_icon_description">Mint icon</string>
+    <string name="mint_selection_select_description">Select this mint</string>
+
+    <!-- Withdraw Lightning Redesign -->
+    <string name="withdraw_invoice_card_title">Lightning Invoice</string>
+    <string name="withdraw_invoice_card_subtitle">Paste an invoice to pay instantly</string>
+    <string name="withdraw_address_card_title">Lightning Address</string>
+    <string name="withdraw_address_card_subtitle">Send to an email-like address</string>
+    <string name="withdraw_invoice_placeholder">lnbc1...</string>
+    <string name="withdraw_amount_placeholder">Enter amount in sats</string>
+    <string name="withdraw_continue_button">Continue</string>
+    <string name="withdraw_scan_qr">Scan QR</string>
+    <string name="withdraw_section_send_to">Send To</string>
+    <string name="withdraw_balance_available">Available: %1$s</string>
+
+    <!-- QR Scanner -->
+    <string name="qr_scanner_title">Scan QR Code</string>
+    <string name="qr_scanner_instruction">Point camera at QR code</string>
+    <string name="qr_scanner_permission_required">Camera permission is required to scan QR codes</string>
+
+    <!-- Mints Settings Redesign -->
+    <string name="mints_explore_title">Mints</string>
+    <string name="mints_total_balance">Total Balance</string>
+    <string name="mints_your_mints">Your Mints</string>
+    <string name="mints_add_new_mint">Add New Mint</string>
+    <string name="mints_enter_url">Enter mint URL or scan QR code</string>
+    <string name="mints_url_hint">https://mint.example.com</string>
+    <string name="mints_add_button">Add Mint</string>
+    <string name="mints_scan_qr">Scan QR</string>
+    <string name="mints_scan_mint_qr">Scan Mint QR</string>
+    <string name="mints_scan_instruction">Point camera at mint QR code</string>
+    <string name="mints_empty_title">No Mints</string>
+    <string name="mints_empty_subtitle">Add a mint to get started with ecash</string>
+    <string name="mints_remove_title">Remove Mint</string>
+    <string name="mints_remove_message">Remove %1$s? Any balance in this mint will be lost.</string>
+    <string name="mints_remove_confirm">Remove</string>
+    <string name="mints_removed_toast">Mint removed</string>
+    <string name="mints_already_exists">This mint is already added</string>
+    <string name="mints_invalid_url">Invalid mint URL. Please check and try again.</string>
+    <string name="mints_added_toast">Mint added</string>
+    <string name="mints_reset_title">Reset Mints</string>
+    <string name="mints_reset_message">Reset to default mints? This will remove all custom mints.</string>
+    <string name="mints_reset_confirm">Reset</string>
+    <string name="mints_reset_toast">Mints reset to defaults</string>
+    <string name="mints_reset_description">Reset to defaults</string>
+    <string name="mint_icon_description">Mint icon</string>
+    <string name="mint_selected_description">Selected</string>
+    <string name="mint_remove_description">Remove mint</string>
+
+    <plurals name="mints_count">
+        <item quantity="one">%1$d mint</item>
+        <item quantity="other">%1$d mints</item>
+    </plurals>
+
+    <!-- Mints Lightning Section -->
+    <string name="mints_lightning_mint">Lightning Mint</string>
+    <string name="mints_all_mints">All Mints</string>
+    <string name="mints_balance">Balance</string>
+    <string name="mints_lightning_description">All Lightning payments will be received to this mint. Tap any mint below to set it as your Lightning mint.</string>
+    <string name="mints_set_as_lightning">Set as Lightning Mint</string>
+    <string name="mints_lightning_changed">Lightning mint updated</string>
+
+    <!-- Content descriptions -->
+    <string name="cd_mint_icon">Mint icon</string>
+    <string name="cd_mint_selected">Selected as Lightning mint</string>
+
+    <!-- Mint Actions -->
+    <string name="mint_action_info">Info</string>
+    <string name="mint_action_delete">Delete</string>
+    <string name="mints_add_section">Add Mint</string>
+
+    <!-- Mint Details Screen -->
+    <string name="mint_details_title">Mint Details</string>
+    <string name="mint_details_about">About</string>
+    <string name="mint_details_announcement">Announcement</string>
+    <string name="mint_details_contact">Contact</string>
+    <string name="mint_details_details">Details</string>
+    <string name="mint_details_actions">Actions</string>
+    <string name="mint_details_url">URL</string>
+    <string name="mint_details_software">Software</string>
+    <string name="mint_details_version">Version</string>
+    <string name="mint_details_features">Features</string>
+    <string name="mint_details_copy_url">Copy Mint URL</string>
+    <string name="mint_details_delete">Delete Mint</string>
+    <string name="mint_details_copied">Copied to clipboard</string>
+    <string name="mint_details_copy">Copy</string>
+    <string name="mint_details_fetch_error">Unable to fetch mint info</string>
+    <string name="common_retry">Retry</string>
+
+    <string name="mint_details_software_value">Software: %1$s</string>
+    <string name="mint_details_version_value">Version: %1$s</string>
+    <string name="mint_details_software_unknown">Software: Unknown</string>
+    <string name="mint_details_version_unknown">Version: Unknown</string>
 </resources>

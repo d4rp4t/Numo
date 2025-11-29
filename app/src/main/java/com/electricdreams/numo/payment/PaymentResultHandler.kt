@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.appcompat.app.AppCompatActivity
 import com.electricdreams.numo.core.worker.BitcoinPriceWorker
+import com.electricdreams.numo.feature.autowithdraw.AutoWithdrawManager
 import com.electricdreams.numo.feature.history.PaymentsHistoryActivity
 
 /**
@@ -49,6 +50,9 @@ class PaymentResultHandler(
             mintUrl, 
             null
         )
+        
+        // Check for auto-withdrawal after successful payment (runs in background)
+        AutoWithdrawManager.getInstance(activity).onPaymentReceived(token, mintUrl)
         
         // Delegate to callback for unified success handling (feedback + screen)
         mainHandler.post {

@@ -28,6 +28,7 @@ import com.electricdreams.numo.payment.LightningMintHandler
 import com.electricdreams.numo.payment.NostrPaymentHandler
 import com.electricdreams.numo.payment.PaymentTabManager
 import com.electricdreams.numo.ui.util.QrCodeGenerator
+import com.electricdreams.numo.feature.autowithdraw.AutoWithdrawManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
@@ -792,12 +793,15 @@ class PaymentRequestActivity : AppCompatActivity() {
     }
 
     /**
-     * Unified success handler - plays feedback and shows success screen.
+     * Unified success handler - plays feedback, triggers auto-withdrawal check, and shows success screen.
      * This is the single source of truth for payment success handling.
      */
     private fun showPaymentSuccess(token: String, amount: Long) {
         // Archive the basket now that payment is complete
         markBasketAsPaid()
+        
+        // Check for auto-withdrawal after successful payment (runs in background, survives activity destruction)
+        AutoWithdrawManager.getInstance(this).onPaymentReceived(token, lightningMintUrl)
         
         // Play success sound
         try {

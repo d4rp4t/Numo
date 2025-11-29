@@ -10,8 +10,10 @@ import com.electricdreams.numo.feature.items.ItemListActivity
 import com.electricdreams.numo.feature.pin.PinEntryActivity
 import com.electricdreams.numo.feature.pin.PinManager
 import com.electricdreams.numo.feature.pin.PinProtectionHelper
+import com.electricdreams.numo.feature.enableEdgeToEdgeWithPill
 import com.electricdreams.numo.feature.tips.TipsSettingsActivity
 import com.electricdreams.numo.feature.baskets.BasketNamesSettingsActivity
+import com.electricdreams.numo.feature.autowithdraw.AutoWithdrawSettingsActivity
 
 /**
  * Main Settings screen.
@@ -31,6 +33,9 @@ class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+
+        // Settings root should also draw under the nav pill for consistency
+        enableEdgeToEdgeWithPill(this, lightNavIcons = true)
 
         pinManager = PinManager.getInstance(this)
 
@@ -86,6 +91,11 @@ class SettingsActivity : AppCompatActivity() {
         // Mints - protected (can withdraw funds)
         findViewById<View>(R.id.mints_settings_item).setOnClickListener {
             openProtectedActivity(MintsSettingsActivity::class.java)
+        }
+
+        // Withdrawals - protected (handles funds)
+        findViewById<View>(R.id.withdrawals_settings_item).setOnClickListener {
+            openProtectedActivity(AutoWithdrawSettingsActivity::class.java)
         }
 
         // === Security Section ===

@@ -222,8 +222,14 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-
-
-
+    <!-- Auto-Withdraw Progress Indicator (floating below the top navigation bar) -->
+    <include
+        android:id="@+id/auto_withdraw_progress"
+        layout="@layout/auto_withdraw_progress_indicator"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/top_navigation"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
