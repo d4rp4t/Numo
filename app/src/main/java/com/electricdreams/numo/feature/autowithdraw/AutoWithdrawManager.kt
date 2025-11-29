@@ -3,9 +3,7 @@ package com.electricdreams.numo.feature.autowithdraw
 import android.content.Context
 import android.util.Log
 import com.electricdreams.numo.core.cashu.CashuWalletManager
-import com.electricdreams.numo.core.data.model.PaymentHistoryEntry
 import com.electricdreams.numo.core.util.MintManager
-import com.electricdreams.numo.feature.history.PaymentsHistoryActivity
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.CoroutineScope
@@ -19,18 +17,25 @@ import java.util.Date
 import java.util.UUID
 
 /**
- * Data class representing an auto-withdrawal history entry.
+ * Data class representing a withdrawal history entry (automatic or manual).
  */
-data class AutoWithdrawHistoryEntry(
+data class WithdrawHistoryEntry(
     val id: String = UUID.randomUUID().toString(),
     val mintUrl: String,
-    val lightningAddress: String,
+    // For backwards compatibility: original field storing auto-withdraw lightning address
+    val lightningAddress: String? = null,
+    // Destination label (Lightning address or abbreviated invoice)
+    val destination: String = "",
+    // "auto_address", "manual_address", "manual_invoice", etc.
+    val destinationType: String = "",
     val amountSats: Long,
     val feeSats: Long,
     val status: String, // "pending", "completed", "failed"
     val timestamp: Long = System.currentTimeMillis(),
     val errorMessage: String? = null,
-    val quoteId: String? = null
+    val quoteId: String? = null,
+    // True for automatic withdrawals, false for manual withdrawals
+    val automatic: Boolean = true
 ) {
     companion object {
         const val STATUS_PENDING = "pending"
@@ -62,7 +67,7 @@ class AutoWithdrawManager private constructor(private val context: Context) {
 
     companion object {
         private const val TAG = "AutoWithdrawManager"
-        private const val PREFS_NAME = "AutoWithdrawHistory"
+        private const val PREFS_NAME = "AutoWithdrawHistory" // shared for all withdrawals
         private const val KEY_HISTORY = "history"
         private const val MAX_HISTORY_ENTRIES = 100
 
@@ -248,12 +253,15 @@ class AutoWithdrawManager private constructor(private val context: Context) {
             progressListener?.onWithdrawProgress("Preparing", "Getting quote...")
         }
 
-        var historyEntry = AutoWithdrawHistoryEntry(
+        var historyEntry = WithdrawHistoryEntry(
             mintUrl = mintUrl,
             lightningAddress = lightningAddress,
+            destination = lightningAddress,
+            destinationType = "auto_address",
             amountSats = withdrawAmount,
             feeSats = 0,
-            status = AutoWithdrawHistoryEntry.STATUS_PENDING
+            status = WithdrawHistoryEntry.STATUS_PENDING,
+            automatic = true
         )
 
         try {
@@ -309,30 +317,6 @@ class AutoWithdrawManager private constructor(private val context: Context) {
                 feeSats = feeReserve
             )
 
-            // Create pending payment history entry for the withdrawal
-            Log.d(TAG, "📋 Step 3: Creating payment history entry...")
-            val paymentHistoryEntry = PaymentHistoryEntry(
-                token = "",
-                amount = -withdrawAmount, // Negative for outgoing
-                date = Date(),
-                rawUnit = "sat",
-                rawEntryUnit = "sat",
-                enteredAmount = withdrawAmount,
-                bitcoinPrice = null,
-                mintUrl = mintUrl,
-                paymentRequest = null,
-                rawStatus = PaymentHistoryEntry.STATUS_PENDING,
-                paymentType = PaymentHistoryEntry.TYPE_LIGHTNING,
-                lightningInvoice = meltQuote.request,
-                lightningQuoteId = meltQuote.id,
-                lightningMintUrl = mintUrl
-            )
-            
-            withContext(Dispatchers.Main) {
-                addPaymentToHistory(paymentHistoryEntry)
-            }
-            Log.d(TAG, "✅ Payment history entry created: ${paymentHistoryEntry.id}")
-
             // Execute melt
             Log.d(TAG, "📋 Step 4: Executing melt operation...")
             withContext(Dispatchers.Main) {
@@ -372,18 +356,15 @@ class AutoWithdrawManager private constructor(private val context: Context) {
                     Log.d(TAG, "   Fee paid: $feeReserve sats")
                     Log.d(TAG, "   Lightning address: $lightningAddress")
                     
-                    historyEntry = historyEntry.copy(status = AutoWithdrawHistoryEntry.STATUS_COMPLETED)
-                    
-                    // Update payment history entry
+                    historyEntry = historyEntry.copy(status = WithdrawHistoryEntry.STATUS_COMPLETED)
                     withContext(Dispatchers.Main) {
-                        updatePaymentHistoryStatus(paymentHistoryEntry.id, PaymentHistoryEntry.STATUS_COMPLETED)
                         progressListener?.onWithdrawCompleted(mintUrl, withdrawAmount, feeReserve)
                     }
                 }
                 QuoteState.PENDING -> {
                     Log.d(TAG, "⏳ Auto-withdrawal pending (waiting for Lightning payment)")
                     historyEntry = historyEntry.copy(
-                        status = AutoWithdrawHistoryEntry.STATUS_PENDING,
+                        status = WithdrawHistoryEntry.STATUS_PENDING,
                         errorMessage = "Payment pending - check back later"
                     )
                     withContext(Dispatchers.Main) {
@@ -413,7 +394,7 @@ class AutoWithdrawManager private constructor(private val context: Context) {
             }
             
             historyEntry = historyEntry.copy(
-                status = AutoWithdrawHistoryEntry.STATUS_FAILED,
+                status = WithdrawHistoryEntry.STATUS_FAILED,
                 errorMessage = e.message
             )
             withContext(Dispatchers.Main) {
@@ -431,11 +412,11 @@ class AutoWithdrawManager private constructor(private val context: Context) {
     /**
      * Get auto-withdraw history.
      */
-    fun getHistory(): List<AutoWithdrawHistoryEntry> {
+    fun getHistory(): List<WithdrawHistoryEntry> {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val json = prefs.getString(KEY_HISTORY, null) ?: return emptyList()
         return try {
-            val type = object : TypeToken<List<AutoWithdrawHistoryEntry>>() {}.type
+            val type = object : TypeToken<List<WithdrawHistoryEntry>>() {}.type
             gson.fromJson(json, type) ?: emptyList()
         } catch (e: Exception) {
             Log.e(TAG, "Error loading auto-withdraw history", e)
@@ -446,7 +427,7 @@ class AutoWithdrawManager private constructor(private val context: Context) {
     /**
      * Add entry to auto-withdraw history.
      */
-    private fun addToHistory(entry: AutoWithdrawHistoryEntry) {
+    private fun addToHistory(entry: WithdrawHistoryEntry) {
         val history = getHistory().toMutableList()
         history.add(0, entry) // Add at beginning (newest first)
         
@@ -461,7 +442,7 @@ class AutoWithdrawManager private constructor(private val context: Context) {
     /**
      * Save auto-withdraw history.
      */
-    private fun saveHistory(history: List<AutoWithdrawHistoryEntry>) {
+    private fun saveHistory(history: List<WithdrawHistoryEntry>) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val json = gson.toJson(history)
         prefs.edit().putString(KEY_HISTORY, json).apply()
@@ -476,48 +457,48 @@ class AutoWithdrawManager private constructor(private val context: Context) {
     }
 
     /**
-     * Add payment entry to payment history.
+     * Add a manual withdrawal entry to the unified withdrawal history.
      */
-    private fun addPaymentToHistory(entry: PaymentHistoryEntry) {
-        val history = PaymentsHistoryActivity.getPaymentHistory(context).toMutableList()
-        history.add(entry)
-        val prefs = context.getSharedPreferences("PaymentHistory", Context.MODE_PRIVATE)
-        prefs.edit().putString("history", gson.toJson(history)).apply()
+    fun addManualWithdrawalEntry(
+        mintUrl: String,
+        amountSats: Long,
+        feeSats: Long,
+        destination: String,
+        destinationType: String,
+        status: String,
+        quoteId: String? = null,
+        errorMessage: String? = null
+    ): WithdrawHistoryEntry {
+        val entry = WithdrawHistoryEntry(
+            mintUrl = mintUrl,
+            lightningAddress = if (destinationType.contains("address")) destination else null,
+            destination = destination,
+            destinationType = destinationType,
+            amountSats = amountSats,
+            feeSats = feeSats,
+            status = status,
+            quoteId = quoteId,
+            errorMessage = errorMessage,
+            automatic = false
+        )
+        addToHistory(entry)
+        return entry
     }
 
     /**
-     * Update payment history entry status.
+     * Update the status (and optional error message) of a withdrawal entry.
      */
-    private fun updatePaymentHistoryStatus(entryId: String, newStatus: String) {
-        val history = PaymentsHistoryActivity.getPaymentHistory(context).toMutableList()
-        val index = history.indexOfFirst { it.id == entryId }
+    fun updateWithdrawalStatus(id: String, status: String, errorMessage: String? = null) {
+        val history = getHistory().toMutableList()
+        val index = history.indexOfFirst { it.id == id }
         if (index >= 0) {
             val existing = history[index]
-            val updated = PaymentHistoryEntry(
-                id = existing.id,
-                token = existing.token,
-                amount = existing.amount,
-                date = existing.date,
-                rawUnit = existing.getUnit(),
-                rawEntryUnit = existing.getEntryUnit(),
-                enteredAmount = existing.enteredAmount,
-                bitcoinPrice = existing.bitcoinPrice,
-                mintUrl = existing.mintUrl,
-                paymentRequest = existing.paymentRequest,
-                rawStatus = newStatus,
-                paymentType = existing.paymentType,
-                lightningInvoice = existing.lightningInvoice,
-                lightningQuoteId = existing.lightningQuoteId,
-                lightningMintUrl = existing.lightningMintUrl,
-                formattedAmount = existing.formattedAmount,
-                checkoutBasketJson = existing.checkoutBasketJson,
-                basketId = existing.basketId,
-                tipAmountSats = existing.tipAmountSats,
-                tipPercentage = existing.tipPercentage
+            val updated = existing.copy(
+                status = status,
+                errorMessage = errorMessage ?: existing.errorMessage
             )
             history[index] = updated
-            val prefs = context.getSharedPreferences("PaymentHistory", Context.MODE_PRIVATE)
-            prefs.edit().putString("history", gson.toJson(history)).apply()
+            saveHistory(history)
         }
     }
 }

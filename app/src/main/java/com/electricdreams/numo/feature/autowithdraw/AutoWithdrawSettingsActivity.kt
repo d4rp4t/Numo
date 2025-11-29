@@ -367,7 +367,7 @@ class AutoWithdrawSettingsActivity : AppCompatActivity() {
      * Premium adapter for displaying auto-withdraw history with expandable error details.
      */
     private inner class AutoWithdrawHistoryAdapter(
-        private val entries: List<AutoWithdrawHistoryEntry>
+        private val entries: List<WithdrawHistoryEntry>
     ) : RecyclerView.Adapter<AutoWithdrawHistoryAdapter.ViewHolder>() {
         
         // Track expanded state for each item
@@ -378,8 +378,10 @@ class AutoWithdrawSettingsActivity : AppCompatActivity() {
             val statusIcon: ImageView = view.findViewById(R.id.status_icon)
             val amountText: TextView = view.findViewById(R.id.amount_text)
             val addressText: TextView = view.findViewById(R.id.address_text)
+            val mintText: TextView = view.findViewById(R.id.mint_text)
             val timestampText: TextView = view.findViewById(R.id.timestamp_text)
             val statusBadge: TextView = view.findViewById(R.id.status_badge)
+            val autoBadge: TextView = view.findViewById(R.id.auto_badge)
             val expandIndicator: ImageView = view.findViewById(R.id.expand_indicator)
             val errorContainer: LinearLayout = view.findViewById(R.id.error_container)
             val errorText: TextView = view.findViewById(R.id.error_text)
@@ -397,8 +399,18 @@ class AutoWithdrawSettingsActivity : AppCompatActivity() {
             val amount = Amount(entry.amountSats, Amount.Currency.BTC)
             holder.amountText.text = amount.toString()
 
-            // Truncate long addresses
-            holder.addressText.text = entry.lightningAddress
+            // Destination (address or invoice abbreviation)
+            holder.addressText.text = entry.destination.ifBlank { entry.lightningAddress ?: "" }
+
+            // Mint label
+            holder.mintText.text = entry.mintUrl
+
+            // Auto/manual badge
+            if (entry.automatic) {
+                holder.autoBadge.visibility = View.VISIBLE
+            } else {
+                holder.autoBadge.visibility = View.GONE
+            }
 
             // Relative timestamp
             val dateFormat = SimpleDateFormat("MMM d • HH:mm", Locale.getDefault())
@@ -406,7 +418,7 @@ class AutoWithdrawSettingsActivity : AppCompatActivity() {
 
             // Status styling
             when (entry.status) {
-                AutoWithdrawHistoryEntry.STATUS_COMPLETED -> {
+                WithdrawHistoryEntry.STATUS_COMPLETED -> {
                     holder.statusIcon.setImageResource(R.drawable.ic_check)
                     holder.statusIcon.setColorFilter(ContextCompat.getColor(this@AutoWithdrawSettingsActivity, R.color.color_success_green))
                     holder.iconContainer.backgroundTintList = ContextCompat.getColorStateList(this@AutoWithdrawSettingsActivity, R.color.color_bg_secondary)
@@ -416,7 +428,7 @@ class AutoWithdrawSettingsActivity : AppCompatActivity() {
                     holder.expandIndicator.visibility = View.GONE
                     holder.errorContainer.visibility = View.GONE
                 }
-                AutoWithdrawHistoryEntry.STATUS_PENDING -> {
+                WithdrawHistoryEntry.STATUS_PENDING -> {
                     holder.statusIcon.setImageResource(R.drawable.ic_pending)
                     holder.statusIcon.setColorFilter(ContextCompat.getColor(this@AutoWithdrawSettingsActivity, R.color.color_warning))
                     holder.iconContainer.backgroundTintList = ContextCompat.getColorStateList(this@AutoWithdrawSettingsActivity, R.color.color_bg_secondary)
@@ -426,7 +438,7 @@ class AutoWithdrawSettingsActivity : AppCompatActivity() {
                     holder.expandIndicator.visibility = View.GONE
                     holder.errorContainer.visibility = View.GONE
                 }
-                AutoWithdrawHistoryEntry.STATUS_FAILED -> {
+                WithdrawHistoryEntry.STATUS_FAILED -> {
                     holder.statusIcon.setImageResource(R.drawable.ic_close)
                     holder.statusIcon.setColorFilter(ContextCompat.getColor(this@AutoWithdrawSettingsActivity, R.color.color_error))
                     holder.iconContainer.backgroundTintList = ContextCompat.getColorStateList(this@AutoWithdrawSettingsActivity, R.color.color_bg_secondary)
