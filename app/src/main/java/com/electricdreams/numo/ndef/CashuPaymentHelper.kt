@@ -1,11 +1,25 @@
 package com.electricdreams.numo.ndef
 
+import android.content.Context
 import android.util.Log
+import com.cashujdk.nut00.ISecret
+import com.cashujdk.nut00.Proof as JdkProof
+import com.cashujdk.nut00.StringSecret
+import com.cashujdk.nut12.DLEQProof
 import com.cashujdk.nut18.PaymentRequest
 import com.cashujdk.nut18.Transport
 import com.cashujdk.nut18.TransportTag
+import com.electricdreams.numo.core.cashu.CashuWalletManager
+import com.electricdreams.numo.core.util.MintManager
+import com.electricdreams.numo.payment.SwapToLightningMintManager
 import com.google.gson.*
 import kotlinx.coroutines.runBlocking
+import org.cashudevkit.CurrencyUnit
+import org.cashudevkit.MintUrl
+import org.cashudevkit.MultiMintReceiveOptions
+import org.cashudevkit.ReceiveOptions
+import org.cashudevkit.SplitTarget
+import org.cashudevkit.Token as CdkToken
 import java.math.BigInteger
 import java.util.Optional
 
@@ -19,6 +33,34 @@ import java.util.Optional
 object CashuPaymentHelper {
 
     private const val TAG = "CashuPaymentHelper"
+
+    /**
+     * Structured result of validating a Cashu token against an expected
+     * amount and the merchant's allowed mint list.
+     */
+    sealed class TokenValidationResult {
+        /** The provided string was not a valid Cashu token. */
+        object InvalidFormat : TokenValidationResult()
+
+        /**
+         * The token is structurally valid, from a mint that is in the
+         * allowed-mints list, and has sufficient amount.
+         */
+        data class ValidKnownMint(val token: CdkToken) : TokenValidationResult()
+
+        /**
+         * The token is structurally valid and has sufficient amount, but the
+         * mint URL is not in the allowed-mints list. This is the entry point
+         * for SwapToLightningMint flows.
+         */
+        data class ValidUnknownMint(
+            val token: CdkToken,
+            val mintUrl: String
+        ) : TokenValidationResult()
+
+        /** The token is valid but does not contain enough value for this payment. */
+        data class InsufficientAmount(val required: Long, val actual: Long) : TokenValidationResult()
+    }
 
     // === Payment request creation (cashu-jdk) ===============================
 
@@ -110,7 +152,7 @@ object CashuPaymentHelper {
         }
     }
 
-    // === Token helpers ======================================================
+    // === Token helpers =====================================================
 
     @JvmStatic
     fun isCashuToken(text: String?): Boolean =
@@ -186,34 +228,68 @@ object CashuPaymentHelper {
 
     // === Validation using CDK Token ========================================
 
+    /**
+     * Legacy boolean validation API kept for backward compatibility.
+     * Prefer [validateTokenDetailed] in new code.
+     */
     @JvmStatic
     fun validateToken(
         tokenString: String?,
         expectedAmount: Long,
         allowedMints: List<String>?,
     ): Boolean {
+        return when (val result = validateTokenDetailed(tokenString, expectedAmount, allowedMints)) {
+            is TokenValidationResult.ValidKnownMint -> true
+            else -> false
+        }
+    }
+
+    @JvmStatic
+    fun validateToken(tokenString: String?, expectedAmount: Long): Boolean =
+        validateToken(tokenString, expectedAmount, null)
+
+    /**
+     * Structured validation that distinguishes known vs unknown mints and
+     * insufficient amounts.
+     */
+    @JvmStatic
+    fun validateTokenDetailed(
+        tokenString: String?,
+        expectedAmount: Long,
+        allowedMints: List<String>?,
+    ): TokenValidationResult {
         if (!isCashuToken(tokenString)) {
             Log.e(TAG, "Invalid token format (not a Cashu token)")
-            return false
+            return TokenValidationResult.InvalidFormat
         }
 
         return try {
-            val token = org.cashudevkit.Token.Companion.decode(
+            val token = CdkToken.decode(
                 tokenString ?: error("tokenString is null"),
             )
 
-            if (token.unit() != org.cashudevkit.CurrencyUnit.Sat) {
+            if (token.unit() != CurrencyUnit.Sat) {
                 Log.e(TAG, "Unsupported token unit: ${token.unit()}")
-                return false
+                return TokenValidationResult.InvalidFormat
             }
 
+            val mintUrl = token.mintUrl().url
+
             if (!allowedMints.isNullOrEmpty()) {
-                val mintUrl = token.mintUrl().url
                 if (!allowedMints.contains(mintUrl)) {
-                    Log.e(TAG, "Mint not in allowed list: $mintUrl")
-                    return false
+                    Log.w(TAG, "Token mint is not in allowed list: $mintUrl")
+                    // We still validate amount so swap flow can decide whether to proceed
+                    val tokenAmount = token.value().value.toLong()
+                    if (tokenAmount < expectedAmount) {
+                        Log.e(
+                            TAG,
+                            "Unknown-mint token has insufficient amount: required=$expectedAmount, actual=$tokenAmount",
+                        )
+                        return TokenValidationResult.InsufficientAmount(expectedAmount, tokenAmount)
+                    }
+                    return TokenValidationResult.ValidUnknownMint(token, mintUrl)
                 } else {
-                    Log.d(TAG, "Token mint validated: $mintUrl")
+                    Log.d(TAG, "Token mint validated as allowed: $mintUrl")
                 }
             }
 
@@ -224,22 +300,18 @@ object CashuPaymentHelper {
                     TAG,
                     "Amount was insufficient: $expectedAmount sats required but $tokenAmount sats provided",
                 )
-                return false
+                return TokenValidationResult.InsufficientAmount(expectedAmount, tokenAmount)
             }
 
             Log.d(TAG, "Token format validation passed using CDK Token; amount=$tokenAmount sats")
-            true
+            return TokenValidationResult.ValidKnownMint(token)
         } catch (e: Exception) {
             Log.e(TAG, "Token validation failed: ${e.message}", e)
-            false
+            return TokenValidationResult.InvalidFormat
         }
     }
 
-    @JvmStatic
-    fun validateToken(tokenString: String?, expectedAmount: Long): Boolean =
-        validateToken(tokenString, expectedAmount, null)
-
-    // === Redemption using CDK MultiMintWallet ===============================
+    // === Redemption using CDK MultiMintWallet ==============================
 
     @JvmStatic
     @Throws(RedemptionException::class)
@@ -252,28 +324,28 @@ object CashuPaymentHelper {
 
         try {
             val wallet =
-                com.electricdreams.numo.core.cashu.CashuWalletManager.getWallet()
+                CashuWalletManager.getWallet()
                     ?: throw RedemptionException("CDK wallet not initialized")
 
             // Decode incoming token using CDK Token
-            val cdkToken = org.cashudevkit.Token.Companion.decode(
+            val cdkToken = CdkToken.decode(
                 tokenString ?: error("tokenString is null"),
             )
 
-            if (cdkToken.unit() != org.cashudevkit.CurrencyUnit.Sat) {
+            if (cdkToken.unit() != CurrencyUnit.Sat) {
                 throw RedemptionException("Unsupported token unit: ${cdkToken.unit()}")
             }
 
-            val mintUrl: org.cashudevkit.MintUrl = cdkToken.mintUrl()
+            val mintUrl: MintUrl = cdkToken.mintUrl()
 
             // Receive into wallet
-            val receiveOptions = org.cashudevkit.ReceiveOptions(
-                amountSplitTarget = org.cashudevkit.SplitTarget.None,
+            val receiveOptions = ReceiveOptions(
+                amountSplitTarget = SplitTarget.None,
                 p2pkSigningKeys = emptyList(),
                 preimages = emptyList(),
                 metadata = emptyMap(),
             )
-            val mmReceive = org.cashudevkit.MultiMintReceiveOptions(
+            val mmReceive = MultiMintReceiveOptions(
                 allowUntrusted = false,
                 transferToMint = null,
                 receiveOptions = receiveOptions,
@@ -284,7 +356,7 @@ object CashuPaymentHelper {
                 wallet.receive(cdkToken, mmReceive)
             }
 
-            Log.d(TAG, "Token received via CDK successfully")
+            Log.d(TAG, "Token received via CDK successfully (mintUrl=${mintUrl.url})")
             // Return the original token instead of sending a new one
             return tokenString ?: error("tokenString is null")
         } catch (e: RedemptionException) {
@@ -296,14 +368,98 @@ object CashuPaymentHelper {
         }
     }
 
-    // === Redemption from PaymentRequestPayload (still cashu-jdk proofs) ==== 
+    // === High-level redemption with optional swap-to-Lightning-mint ========
+
+    /**
+     * High-level redemption entry point used by payment flows (NDEF, Nostr).
+     *
+     * Behavior:
+     * - Validates the token structure and amount against expectedAmount.
+     * - If mint is in allowedMints → normal Cashu redemption via MultiMintWallet.
+     * - If mint is *not* in allowedMints but amount is sufficient →
+     *   runs the SwapToLightningMint flow and treats Lightning receipt as
+     *   payment success (returns empty string as token, Lightning-style).
+     *
+     * @param appContext Android application context.
+     * @param tokenString Encoded Cashu token from payer.
+     * @param expectedAmount Amount in sats the POS expects for this payment.
+     * @param allowedMints Optional list of allowed mint URLs; if null/empty,
+     *                     all mints are treated as allowed.
+     * @param paymentContext Context tying this redemption to a payment
+     *                       history entry (paymentId, amount).
+     * @return Redeemed token string (for pure Cashu) or empty string when the
+     *         payment was fulfilled via a Lightning swap.
+     */
+    @Throws(RedemptionException::class)
+    suspend fun redeemTokenWithSwap(
+        appContext: Context,
+        tokenString: String?,
+        expectedAmount: Long,
+        allowedMints: List<String>?,
+        paymentContext: SwapToLightningMintManager.PaymentContext
+    ): String {
+        val result = validateTokenDetailed(tokenString, expectedAmount, allowedMints)
+
+        return when (result) {
+            is TokenValidationResult.InvalidFormat -> {
+                throw RedemptionException("Invalid Cashu token")
+            }
+
+            is TokenValidationResult.InsufficientAmount -> {
+                throw RedemptionException(
+                    "Insufficient amount: required=${'$'}{result.required}, got=${'$'}{result.actual}"
+                )
+            }
+
+            is TokenValidationResult.ValidKnownMint -> {
+                // Standard Cashu redemption path
+                redeemToken(tokenString)
+            }
+
+            is TokenValidationResult.ValidUnknownMint -> {
+                // If swap from unknown mints is disabled, fall back to the
+                // legacy behavior of rejecting unknown mints instead of
+                // attempting a SwapToLightningMint flow.
+                val mintManager = MintManager.getInstance(appContext)
+                if (!mintManager.isSwapFromUnknownMintsEnabled()) {
+                    Log.w(TAG, "Token from unknown mint encountered but swap-to-Lightning-mint is disabled - rejecting payment")
+                    throw RedemptionException("Payments from unknown mints are disabled in Settings  Mints.")
+                }
+
+                Log.i(TAG, "Token from unknown mint detected - starting SwapToLightningMint flow")
+
+                val swapResult = SwapToLightningMintManager.swapFromUnknownMint(
+                    appContext = appContext,
+                    cashuToken = tokenString ?: error("tokenString is null"),
+                    expectedAmount = expectedAmount,
+                    unknownMintUrl = result.mintUrl,
+                    paymentContext = paymentContext,
+                )
+
+                return when (swapResult) {
+                    is SwapToLightningMintManager.SwapResult.Success -> {
+                        Log.i(TAG, "SwapToLightningMint succeeded for unknown mint token")
+                        // Lightning-style: no Cashu token is imported into our wallet
+                        ""
+                    }
+                    is SwapToLightningMintManager.SwapResult.Failure -> {
+                        throw RedemptionException("Swap to Lightning mint failed: ${'$'}{swapResult.errorMessage}")
+                    }
+                }
+            }
+        }
+    }
+
+    // === Redemption from PaymentRequestPayload (still cashu-jdk proofs) ====
 
     @JvmStatic
     @Throws(RedemptionException::class)
-    fun redeemFromPRPayload(
+    suspend fun redeemFromPRPayloadWithSwap(
+        appContext: Context,
         payloadJson: String?,
         expectedAmount: Long,
         allowedMints: List<String>?,
+        paymentContext: SwapToLightningMintManager.PaymentContext
     ): String {
         if (payloadJson == null) {
             throw RedemptionException("PaymentRequestPayload JSON is null")
@@ -313,73 +469,72 @@ object CashuPaymentHelper {
             val payload = PaymentRequestPayload.GSON.fromJson(
                 payloadJson,
                 PaymentRequestPayload::class.java,
-            )
-                ?: throw RedemptionException("Failed to parse PaymentRequestPayload")
+            ) ?: throw RedemptionException("Failed to parse PaymentRequestPayload")
 
             if (payload.mint.isNullOrEmpty()) {
                 throw RedemptionException("PaymentRequestPayload is missing mint")
             }
             if (payload.unit == null || payload.unit != "sat") {
-                throw RedemptionException("Unsupported unit in PaymentRequestPayload: ${payload.unit}")
+                throw RedemptionException("Unsupported unit in PaymentRequestPayload: ${'$'}{payload.unit}")
             }
             if (payload.proofs.isNullOrEmpty()) {
                 throw RedemptionException("PaymentRequestPayload contains no proofs")
             }
 
-            val mintUrl = payload.mint!!
-            if (!allowedMints.isNullOrEmpty() && !allowedMints.contains(mintUrl)) {
-                throw RedemptionException("Mint $mintUrl not in allowed list")
-            }
-
             val totalAmount = payload.proofs!!.sumOf { it.amount }
             if (totalAmount < expectedAmount) {
                 throw RedemptionException(
-                    "Insufficient amount in payload proofs: $totalAmount < expected $expectedAmount",
+                    "Insufficient amount in payload proofs: ${'$'}totalAmount < expected ${'$'}expectedAmount",
                 )
             }
 
-            // Build a legacy cashu-jdk Token from proofs, then let CDK wallet
-            // handle the redemption via redeemToken(encoded).
-            val tempToken = com.cashujdk.nut00.Token(payload.proofs!!, payload.unit!!, mintUrl)
+            // Build a legacy cashu-jdk Token from proofs, then delegate to the
+            // high-level swap-aware redemption path so that unknown mints can be
+            // swapped to the merchant's Lightning mint.
+            val tempToken = com.cashujdk.nut00.Token(payload.proofs!!, payload.unit!!, payload.mint!!)
             val encoded = tempToken.encode()
-            return redeemToken(encoded)
+            return redeemTokenWithSwap(
+                appContext = appContext,
+                tokenString = encoded,
+                expectedAmount = expectedAmount,
+                allowedMints = allowedMints,
+                paymentContext = paymentContext,
+            )
         } catch (e: JsonSyntaxException) {
-            throw RedemptionException("Invalid JSON for PaymentRequestPayload: ${e.message}", e)
+            throw RedemptionException("Invalid JSON for PaymentRequestPayload: ${'$'}{e.message}", e)
         } catch (e: JsonIOException) {
-            val errorMsg = "PaymentRequestPayload redemption failed: ${e.message}"
+            val errorMsg = "PaymentRequestPayload redemption failed: ${'$'}{e.message}"
             Log.e(TAG, errorMsg, e)
             throw RedemptionException(errorMsg, e)
         } catch (e: RedemptionException) {
             throw e
         } catch (e: Exception) {
-            val errorMsg = "PaymentRequestPayload redemption failed: ${e.message}"
+            val errorMsg = "PaymentRequestPayload redemption failed: ${'$'}{e.message}"
             Log.e(TAG, errorMsg, e)
             throw RedemptionException(errorMsg, e)
         }
     }
-
-    // === DTO for PaymentRequestPayload ====================================== 
 
     class PaymentRequestPayload {
         var id: String? = null
         var memo: String? = null
         var mint: String? = null
         var unit: String? = null
-        var proofs: MutableList<com.cashujdk.nut00.Proof>? = null
+        var proofs: MutableList<JdkProof>? = null
 
         companion object {
             @JvmField
             val GSON: Gson = GsonBuilder()
-                .registerTypeAdapter(com.cashujdk.nut00.Proof::class.java, ProofAdapter())
+                .registerTypeAdapter(JdkProof::class.java, ProofAdapter())
                 .create()
         }
 
-        private class ProofAdapter : JsonDeserializer<com.cashujdk.nut00.Proof> {
+        private class ProofAdapter : JsonDeserializer<JdkProof> {
             override fun deserialize(
                 json: JsonElement?,
                 typeOfT: java.lang.reflect.Type?,
                 context: JsonDeserializationContext?,
-            ): com.cashujdk.nut00.Proof {
+            ): JdkProof {
                 if (json == null || !json.isJsonObject) {
                     throw JsonParseException("Expected object for Proof")
                 }
@@ -393,9 +548,9 @@ object CashuPaymentHelper {
                 val keysetId = obj.get("id")?.takeIf { !it.isJsonNull }?.asString
                     ?: throw JsonParseException("Proof is missing id/keysetId")
 
-                val secret: com.cashujdk.nut00.ISecret = com.cashujdk.nut00.StringSecret(secretStr)
+                val secret: ISecret = StringSecret(secretStr)
 
-                var dleq: com.cashujdk.nut12.DLEQProof? = null
+                var dleq: DLEQProof? = null
                 if (obj.has("dleq") && obj.get("dleq").isJsonObject) {
                     val d = obj.getAsJsonObject("dleq")
                     val rStr = d.get("r").asString
@@ -406,10 +561,10 @@ object CashuPaymentHelper {
                     val s = BigInteger(sStr, 16)
                     val e = BigInteger(eStr, 16)
 
-                    dleq = com.cashujdk.nut12.DLEQProof(s, e, Optional.of(r))
+                    dleq = DLEQProof(s, e, Optional.of(r))
                 }
 
-                return com.cashujdk.nut00.Proof(
+                return JdkProof(
                     amount,
                     keysetId,
                     secret,
@@ -421,7 +576,7 @@ object CashuPaymentHelper {
         }
     }
 
-    // === Exception type =====================================================
+    // === Exception type ====================================================
 
     class RedemptionException : Exception {
         constructor(message: String) : super(message)

@@ -2,7 +2,9 @@ package com.electricdreams.numo.nostr;
 
 import android.util.Log;
 
+import com.electricdreams.numo.AppGlobals;
 import com.electricdreams.numo.ndef.CashuPaymentHelper;
+import com.electricdreams.numo.payment.SwapToLightningMintManager;
 
 import java.util.List;
 import java.util.Set;
@@ -124,21 +126,65 @@ public final class NostrPaymentListener {
                 return;
             }
 
-            Log.d(TAG, "Attempting PaymentRequestPayload redemption from relay=" + relayUrl);
-            String token = CashuPaymentHelper.redeemFromPRPayload(
-                    payloadJson,
-                    expectedAmount,
-                    allowedMints
+            Log.d(TAG, "Attempting PaymentRequestPayload redemption (with swap) from relay=" + relayUrl);
+
+            // For Nostr, we create a minimal PaymentContext that ties this
+            // redemption to the expected amount. There is no explicit
+            // paymentId here; higher-level callers can correlate via Nostr
+            // metadata if needed.
+            SwapToLightningMintManager.PaymentContext paymentContext =
+                    new SwapToLightningMintManager.PaymentContext(null, expectedAmount);
+
+            // Call the high-level, swap-aware redemption helper so that
+            // incoming ecash from unknown mints can be swapped to the
+            // merchant's configured Lightning mint.
+            String token = (String) kotlinx.coroutines.BuildersKt.runBlocking(
+                    kotlin.coroutines.EmptyCoroutineContext.INSTANCE,
+                    (kotlinx.coroutines.CoroutineScope scope, kotlin.coroutines.Continuation<? super String> continuation) -> {
+                        try {
+                            return CashuPaymentHelper.INSTANCE.redeemFromPRPayloadWithSwap(
+                                    AppGlobals.INSTANCE.getAppContext(),
+                                    payloadJson,
+                                    expectedAmount,
+                                    allowedMints,
+                                    paymentContext,
+                                    continuation
+                            );
+                        } catch (CashuPaymentHelper.RedemptionException e) {
+                            // Surface as a failure inside the coroutine; it will be
+                            // rethrown by runBlocking and handled by the outer catch.
+                            throw new RuntimeException(e);
+                        }
+                    }
             );
 
-            if (token != null && !token.isEmpty()) {
-                Log.i(TAG, "Redemption successful via nostr DM; stopping listener");
+            // For swap-to-Lightning-mint flows, a successful redemption may
+            // legitimately return an empty token string (Lightning-style
+            // payment, no Cashu token imported). Treat both non-empty and
+            // empty strings as success and let higher layers decide how to
+            // handle the result.
+            if (token != null) {
+                Log.i(TAG, "Redemption (with possible swap) successful via nostr DM; stopping listener. tokenLength=" + token.length());
                 stop();
                 if (successHandler != null) {
                     successHandler.onSuccess(token);
                 }
             } else {
-                Log.w(TAG, "Redemption returned empty token; ignoring");
+                Log.w(TAG, "Redemption returned null token; ignoring");
+            }
+        } catch (RuntimeException re) {
+            Throwable cause = re.getCause();
+            if (cause instanceof CashuPaymentHelper.RedemptionException) {
+                CashuPaymentHelper.RedemptionException e = (CashuPaymentHelper.RedemptionException) cause;
+                Log.e(TAG, "Redemption error for event from " + relayUrl + ": " + e.getMessage(), e);
+                if (errorHandler != null) {
+                    errorHandler.onError("PaymentRequestPayload redemption failed", e);
+                }
+            } else {
+                Log.e(TAG, "Unexpected runtime error during Nostr redemption from " + relayUrl + ": " + re.getMessage(), re);
+                if (errorHandler != null) {
+                    errorHandler.onError("Unexpected error during Nostr redemption", re);
+                }
             }
         } catch (CashuPaymentHelper.RedemptionException e) {
             Log.e(TAG, "Redemption error for event from " + relayUrl + ": " + e.getMessage(), e);
