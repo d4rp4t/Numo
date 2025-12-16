@@ -1,7 +1,9 @@
 package com.electricdreams.numo.feature.onboarding
 
 import android.animation.AnimatorSet
+import android.animation.ArgbEvaluator
 import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -106,6 +108,10 @@ class OnboardingActivity : AppCompatActivity() {
     // === Views ===
     // Step 1: Welcome
     private lateinit var welcomeContainer: FrameLayout
+    private lateinit var welcomeBackgroundOverlay: View
+    private lateinit var welcomeNavyCurve: ImageView
+    private lateinit var welcomeWordmark: ImageView
+    private lateinit var welcomeTagline: TextView
     private lateinit var termsText: TextView
     private lateinit var acceptButton: MaterialButton
 
@@ -188,16 +194,8 @@ class OnboardingActivity : AppCompatActivity() {
         // Enable edge-to-edge display
         WindowCompat.setDecorFitsSystemWindows(window, false)
         
-        // Set the background color for status and nav bars to match content
-        val bgColor = android.graphics.Color.parseColor("#F6F7F8")
-        window.statusBarColor = bgColor
-        window.navigationBarColor = bgColor
-
-        // Light status bar icons (dark icons on light background)
-        WindowInsetsControllerCompat(window, window.decorView).apply {
-            isAppearanceLightStatusBars = true
-            isAppearanceLightNavigationBars = true
-        }
+        // Default to white/light bars (will be updated per screen)
+        updateWindowBarsForStep(OnboardingStep.WELCOME)
 
         // Apply insets as padding to content, but don't consume them
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { v, windowInsets ->
@@ -207,9 +205,43 @@ class OnboardingActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Updates the status bar and navigation bar colors based on the current onboarding step.
+     * Welcome screen: Navy status bar (top matches navy curve), green nav bar (bottom matches green).
+     * All other screens: White/light bars.
+     */
+    private fun updateWindowBarsForStep(step: OnboardingStep) {
+        val windowInsetsController = WindowInsetsControllerCompat(window, window.decorView)
+        
+        if (step == OnboardingStep.WELCOME) {
+            // Navy status bar (matches curved navy section at top)
+            val navyColor = android.graphics.Color.parseColor("#0A2540")
+            val greenColor = android.graphics.Color.parseColor("#5EFFC2")
+            window.statusBarColor = navyColor
+            window.navigationBarColor = greenColor
+            
+            // Light icons on navy status bar, dark icons on green nav bar
+            windowInsetsController.isAppearanceLightStatusBars = false
+            windowInsetsController.isAppearanceLightNavigationBars = false
+        } else {
+            // White/light bars for all other screens
+            val bgColor = android.graphics.Color.parseColor("#F6F7F8")
+            window.statusBarColor = bgColor
+            window.navigationBarColor = bgColor
+            
+            // Dark icons on light background
+            windowInsetsController.isAppearanceLightStatusBars = true
+            windowInsetsController.isAppearanceLightNavigationBars = true
+        }
+    }
+
     private fun initViews() {
         // Welcome
         welcomeContainer = findViewById(R.id.welcome_container)
+        welcomeBackgroundOverlay = findViewById(R.id.welcome_background_overlay)
+        welcomeNavyCurve = findViewById(R.id.welcome_navy_curve)
+        welcomeWordmark = findViewById(R.id.welcome_wordmark)
+        welcomeTagline = findViewById(R.id.welcome_tagline)
         termsText = findViewById(R.id.terms_text)
         acceptButton = findViewById(R.id.accept_button)
 
@@ -437,6 +469,9 @@ class OnboardingActivity : AppCompatActivity() {
     private fun showStep(step: OnboardingStep) {
         currentStep = step
 
+        // Update window bars based on the step (green only for welcome screen)
+        updateWindowBarsForStep(step)
+
         // Hide all containers
         welcomeContainer.visibility = View.GONE
         choosePathContainer.visibility = View.GONE
@@ -460,7 +495,13 @@ class OnboardingActivity : AppCompatActivity() {
         }
 
         containerToShow.visibility = View.VISIBLE
+        
+        // Use special animation for welcome screen
+        if (step == OnboardingStep.WELCOME) {
+            animateWelcomeScreen()
+        } else {
         animateContainerIn(containerToShow)
+        }
     }
 
     private fun animateContainerIn(container: View) {
@@ -476,6 +517,91 @@ class OnboardingActivity : AppCompatActivity() {
             duration = 300
             interpolator = DecelerateInterpolator()
         }.start()
+    }
+
+    /**
+     * Elegant Apple-like animation for the welcome screen.
+     * Two-tone design: Navy curved section at top, fluorescent green at bottom.
+     * 1. Navy curve slides/fades in from top
+     * 2. Wordmark fades in with scale animation
+     * 3. Tagline fades in with slide up
+     * 4. Button fades in
+     */
+    private fun animateWelcomeScreen() {
+        // Reset all views to initial state
+        welcomeNavyCurve.alpha = 0f
+        welcomeNavyCurve.translationY = -50f
+        welcomeWordmark.alpha = 0f
+        welcomeWordmark.scaleX = 0.95f
+        welcomeWordmark.scaleY = 0.95f
+        welcomeTagline.alpha = 0f
+        welcomeTagline.translationY = 15f
+        acceptButton.alpha = 0f
+        acceptButton.translationY = 20f
+
+        // 1. Animate navy curve sliding down and fading in
+        val navyCurveAlpha = ObjectAnimator.ofFloat(welcomeNavyCurve, "alpha", 0f, 1f).apply {
+            duration = 700
+            startDelay = 150
+            interpolator = DecelerateInterpolator()
+        }
+        val navyCurveTranslate = ObjectAnimator.ofFloat(welcomeNavyCurve, "translationY", -50f, 0f).apply {
+            duration = 700
+            startDelay = 150
+            interpolator = DecelerateInterpolator()
+        }
+
+        // 2. Animate wordmark fade in with subtle scale - appears immediately (no delay)
+        val wordmarkAlpha = ObjectAnimator.ofFloat(welcomeWordmark, "alpha", 0f, 1f).apply {
+            duration = 400
+            startDelay = 0
+            interpolator = DecelerateInterpolator()
+        }
+        val wordmarkScaleX = ObjectAnimator.ofFloat(welcomeWordmark, "scaleX", 0.95f, 1f).apply {
+            duration = 400
+            startDelay = 0
+            interpolator = DecelerateInterpolator()
+        }
+        val wordmarkScaleY = ObjectAnimator.ofFloat(welcomeWordmark, "scaleY", 0.95f, 1f).apply {
+            duration = 400
+            startDelay = 0
+            interpolator = DecelerateInterpolator()
+        }
+
+        // 3. Animate tagline fade in with slide up
+        val taglineAlpha = ObjectAnimator.ofFloat(welcomeTagline, "alpha", 0f, 1f).apply {
+            duration = 450
+            startDelay = 850
+            interpolator = DecelerateInterpolator()
+        }
+        val taglineTranslate = ObjectAnimator.ofFloat(welcomeTagline, "translationY", 15f, 0f).apply {
+            duration = 450
+            startDelay = 850
+            interpolator = DecelerateInterpolator()
+        }
+
+        // 4. Animate button fade in
+        val buttonAlpha = ObjectAnimator.ofFloat(acceptButton, "alpha", 0f, 1f).apply {
+            duration = 400
+            startDelay = 1150
+            interpolator = DecelerateInterpolator()
+        }
+        val buttonTranslate = ObjectAnimator.ofFloat(acceptButton, "translationY", 20f, 0f).apply {
+            duration = 400
+            startDelay = 1150
+            interpolator = DecelerateInterpolator()
+        }
+
+        // Play all animations
+        AnimatorSet().apply {
+            playTogether(
+                navyCurveAlpha, navyCurveTranslate,
+                wordmarkAlpha, wordmarkScaleX, wordmarkScaleY,
+                taglineAlpha, taglineTranslate,
+                buttonAlpha, buttonTranslate
+            )
+            start()
+        }
     }
 
     // === New Wallet Flow ===
