@@ -19,6 +19,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import com.electricdreams.numo.core.cashu.CashuWalletManager
+import com.electricdreams.numo.core.prefs.PreferenceStore
 import com.electricdreams.numo.core.worker.BitcoinPriceWorker
 import com.electricdreams.numo.feature.autowithdraw.AutoWithdrawManager
 import com.electricdreams.numo.feature.autowithdraw.AutoWithdrawProgressListener
@@ -79,7 +80,7 @@ class ModernPOSActivity : AppCompatActivity(), SatocashWallet.OperationFeedback,
     }
 
     private fun setupThemeSettings() {
-        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val prefs = PreferenceStore.app(this)
         val isDarkMode = prefs.getBoolean(KEY_DARK_MODE, false)
         AppCompatDelegate.setDefaultNightMode(
             if (isDarkMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO,
@@ -345,7 +346,6 @@ class ModernPOSActivity : AppCompatActivity(), SatocashWallet.OperationFeedback,
 
     companion object {
         private const val TAG = "ModernPOSActivity"
-        private const val PREFS_NAME = "NumoPrefs"
         private const val KEY_DARK_MODE = "darkMode"
     }
 }
