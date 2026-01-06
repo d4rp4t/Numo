@@ -497,33 +497,35 @@ class ItemManager private constructor(context: Context) {
             }
 
             // Copy the image from the Uri to the file
-            val inputStream: InputStream? = context.contentResolver.openInputStream(imageUri)
+            val inputStream = context.contentResolver.openInputStream(imageUri)
             if (inputStream != null) {
-                var bitmap = BitmapFactory.decodeStream(inputStream)
-                inputStream.close()
+                inputStream.use { stream ->
+                    var bitmap = BitmapFactory.decodeStream(stream)
 
-                // Scale down if the image is too large
-                if (bitmap.width > 1024 || bitmap.height > 1024) {
-                    val maxDimension = maxOf(bitmap.width, bitmap.height)
-                    val scale = 1024f / maxDimension
-                    val newWidth = (bitmap.width * scale).toInt()
-                    val newHeight = (bitmap.height * scale).toInt()
-                    bitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+                    // Scale down if the image is too large
+                    if (bitmap.width > 1024 || bitmap.height > 1024) {
+                        val maxDimension = maxOf(bitmap.width, bitmap.height)
+                        val scale = 1024f / maxDimension
+                        val newWidth = (bitmap.width * scale).toInt()
+                        val newHeight = (bitmap.height * scale).toInt()
+                        bitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+                    }
+
+                    // Save the image as JPEG with 85% quality
+                    FileOutputStream(imageFile).use { outputStream ->
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
+                        outputStream.flush()
+                    }
+
+                    // Update the item's image path
+                    item.imagePath = imageFile.absolutePath
+                    updateItem(item)
+
+                    return true // Success
                 }
-
-                // Save the image as JPEG with 85% quality
-                FileOutputStream(imageFile).use { outputStream ->
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
-                    outputStream.flush()
-                }
-
-                // Update the item's image path
-                item.imagePath = imageFile.absolutePath
-                updateItem(item)
-
-                true
             } else {
-                false
+                Log.e(TAG, "Failed to open input stream for image URI")
+                return false
             }
         } catch (e: IOException) {
             Log.e(TAG, "Error saving item image: ${e.message}", e)
