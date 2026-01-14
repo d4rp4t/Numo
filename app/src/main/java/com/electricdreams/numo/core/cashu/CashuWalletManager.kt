@@ -214,6 +214,7 @@ object CashuWalletManager : MintManager.MintChangeListener {
     }
 
     /** Current MultiMintWallet instance, or null if initialization failed or not complete. */
+    @JvmStatic
     fun getWallet(): MultiMintWallet? = wallet
 
     /** Current database instance, mostly for debugging or future use. */
